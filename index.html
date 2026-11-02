@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Descent Drill">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#eef2f5" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0f1722" media="(prefers-color-scheme: dark)">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" href="icon-192.png">
+<style>:root{color-scheme:light dark;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0;-webkit-text-size-adjust:100%}[hidden]{display:none!important}</style>
+<title>Descent Math Drill</title>
+<style>
+/* Layout: chart-paper column; the drill card is the whole page */
+:root{
+  --paper:#eef2f5; --panel:#ffffff; --ink:#14243a; --muted:#5b6b7f; --rule:#d3dbe4;
+  --magenta:#b0247a; --magenta-soft:#f7e3ef; --good:#1d7a4a; --good-soft:#e1f2e8; --bad:#b33a2b; --bad-soft:#f8e4e1;
+  --display:"Avenir Next Condensed","Arial Narrow",system-ui,sans-serif;
+  --body:system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:ui-monospace,"SF Mono",Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --paper:#0f1722; --panel:#172231; --ink:#e3eaf2; --muted:#93a3b6; --rule:#2a394b;
+  --magenta:#ec6ab5; --magenta-soft:#3a1c30; --good:#5cc78e; --good-soft:#143025; --bad:#f08a7a; --bad-soft:#3a1d1a; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --paper:#0f1722; --panel:#172231; --ink:#e3eaf2; --muted:#93a3b6; --rule:#2a394b;
+  --magenta:#ec6ab5; --magenta-soft:#3a1c30; --good:#5cc78e; --good-soft:#143025; --bad:#f08a7a; --bad-soft:#3a1d1a; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--paper);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.55}
+.wrap{max-width:760px;margin:0 auto;padding-block:28px 64px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:flex;flex-direction:column;gap:36px}
+h1,h2{font-family:var(--display);font-weight:700;letter-spacing:.01em;text-wrap:balance;margin:0;line-height:1.05}
+h1{font-size:2.6rem}
+h2{font-size:1.7rem}
+
+
+/* drill */
+.drill{background:var(--panel);border:2px solid var(--magenta);border-radius:14px;padding:20px;display:flex;flex-direction:column;gap:16px}
+.drill-top{display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap}
+.stats{display:flex;gap:16px;font-family:var(--mono);font-size:.82rem;color:var(--muted);font-variant-numeric:tabular-nums}
+.stats strong{color:var(--ink);font-weight:600}
+.mode{display:flex;flex-direction:column;gap:6px}
+.mode label{font-family:var(--mono);font-size:.74rem;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.mode select{font:500 1rem var(--body);color:var(--ink);background:var(--paper);border:1px solid var(--rule);border-radius:10px;padding:10px 12px;width:100%;max-width:340px;cursor:pointer}
+.mode select:focus-visible{outline:2px solid var(--magenta);outline-offset:2px}
+.btn:focus-visible,input:focus-visible{outline:2px solid var(--magenta);outline-offset:2px}
+.qtype{font-family:var(--mono);font-size:.74rem;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.question{font-size:1.25rem;font-weight:500;line-height:1.45;margin:4px 0 0}
+.question .n{font-family:var(--mono);font-weight:600;color:var(--magenta)}
+.answer-row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.field{display:flex;align-items:center;border:1px solid var(--rule);border-radius:10px;background:var(--paper);padding:0 12px;flex:1 1 180px;min-width:0}
+.field input{border:0;background:transparent;color:var(--ink);font:600 1.4rem var(--mono);padding:10px 0;width:100%;min-width:0;outline:none}
+.field .unit{font-family:var(--mono);color:var(--muted);font-size:.9rem;white-space:nowrap}
+.btn{font:600 .95rem var(--body);border-radius:10px;padding:12px 18px;cursor:pointer;border:1px solid var(--magenta);background:var(--magenta);color:#fff}
+.btn.ghost{background:transparent;color:var(--ink);border-color:var(--rule)}
+.timer{font-family:var(--mono);font-size:.9rem;color:var(--muted);font-variant-numeric:tabular-nums;min-width:4ch}
+.result{border-radius:10px;padding:14px 16px;display:flex;flex-direction:column;gap:8px}
+.result.good{background:var(--good-soft)}
+.result.bad{background:var(--bad-soft)}
+.result.reveal{background:var(--magenta-soft)}
+.verdict{font-weight:600}
+.good .verdict{color:var(--good)} .bad .verdict{color:var(--bad)}
+.steps{margin:0;padding-left:20px;font-family:var(--mono);font-size:.88rem;line-height:1.7}
+.say{font-size:.9rem;color:var(--muted);margin:0}
+.say em{font-style:normal;color:var(--ink)}
+
+@media (max-width:480px){h1{font-size:2.1rem} .question{font-size:1.1rem}}
+@media (prefers-reduced-motion:no-preference){.result{animation:in .18s ease-out}@keyframes in{from{transform:translateY(4px)}to{transform:none}}}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+
+
+  <section class="drill" aria-label="Practice drill">
+    <div class="drill-top">
+      <h2>Drill</h2>
+      <div class="stats" aria-live="polite">
+        <span>Right <strong id="sRight">0</strong>/<strong id="sTotal">0</strong></span>
+        <span>Streak <strong id="sStreak">0</strong></span>
+        <span>Avg <strong id="sAvg">–</strong></span>
+      </div>
+    </div>
+    <div class="mode">
+      <label for="mode">Practice</label>
+      <select id="mode"></select>
+    </div>
+    <div>
+      <div class="qtype" id="qtype"></div>
+      <p class="question" id="question"></p>
+    </div>
+    <form class="answer-row" id="form" autocomplete="off">
+      <label class="field" for="answer"><input id="answer" inputmode="decimal" placeholder="Your answer" aria-label="Your answer"><span class="unit" id="unit"></span></label>
+      <button class="btn" type="submit" id="checkBtn">Check</button>
+      <button class="btn ghost" type="button" id="revealBtn">Show method</button>
+      <button class="btn ghost" type="button" id="nextBtn">Next</button>
+      <span class="timer" id="timer">0s</span>
+    </form>
+    <div id="result" hidden></div>
+  </section>
+</div>
+
+<script>
+(function(){
+const R=(a,b,s=1)=>a+s*Math.floor(Math.random()*((b-a)/s+1));
+const pick=a=>a[Math.floor(Math.random()*a.length)];
+const fmt=n=>Math.round(n).toLocaleString('en-US');
+const fl=n=>n>=18000?'FL'+(n/100):fmt(n)+' ft';
+
+const TYPES={
+  desc:{label:'3:1 distance',gen(){
+    const from=R(240,410,10)*100,to=R(3,17)*1000,d=(from-to)/1000*3;
+    return{q:`Descend from <span class="n">${fl(from)}</span> to cross a fix at <span class="n">${fl(to)}</span>. How many nm before the fix do you start down?`,unit:'nm',ans:d,tol:2,
+      steps:[`${fmt(from)} − ${fmt(to)} = ${fmt(from-to)} ft`,`${(from-to)/1000} × 3 = ${d} nm`],
+      say:'Altitude to lose in thousands, times three.'};}},
+  slow:{label:'Descent + slowdown',gen(){
+    const from=R(240,390,10)*100,to=R(4,15)*1000,v1=R(28,32)*10,v2=pick([210,220,230,240,250]);
+    const base=(from-to)/1000*3,dv=v1-v2,d=base+dv/10;
+    return{q:`<span class="n">${fl(from)}</span> to <span class="n">${fl(to)}</span> at <span class="n">${v1} kt</span>, slowing to <span class="n">${v2} kt</span> before reaching ${fmt(to)}. How far out do you start?`,unit:'nm',ans:d,tol:3,
+      steps:[`${fmt(from-to)} ft → ${(from-to)/1000} × 3 = ${base} nm`,`${v1} − ${v2} = ${dv} kt → ${dv} ÷ 10 = ${dv/10} nm`,`${base} + ${dv/10} = ${d} nm`],
+      say:'3:1 for the altitude, plus 1 nm per 10 kt to slow.'};}},
+  rate:{label:'3° rate',gen(){
+    const gs=R(24,48)*10,vs=gs*5;
+    return{q:`Groundspeed <span class="n">${gs} kt</span>. What vertical speed holds a 3° path?`,unit:'fpm',ans:vs,tol:100,
+      steps:[`${gs} × 5 = ${fmt(vs)} fpm`,`Check: ${gs} ÷ 2 = ${gs/2}, add a zero → ${fmt(vs)}`],
+      say:'Groundspeed times five.'};}},
+  vsreq:{label:'Required VS',gen(){
+    const gs=pick([240,270,300,330,360,390,420]),nm=R(3,8)*5,alt=R(4,12)*1000;
+    const npm=gs/60,min=nm/npm,vs=alt/min;
+    return{q:`You need to lose <span class="n">${fmt(alt)} ft</span> in <span class="n">${nm} nm</span> at <span class="n">${gs} kt</span> groundspeed. What vertical speed?`,unit:'fpm',ans:vs,tol:Math.max(100,vs*0.06),
+      steps:[`${gs} ÷ 60 = ${+npm.toFixed(1)} nm/min`,`${nm} ÷ ${+npm.toFixed(1)} = ${min.toFixed(1)} min`,`${fmt(alt)} ÷ ${min.toFixed(1)} ≈ ${fmt(vs)} fpm`],
+      say:'Turn distance into minutes, then divide the altitude.'};}},
+  wind:{label:'Time with wind',gen(){
+    const tas=R(18,48)*10,w=R(1,8)*10,head=Math.random()<.6,dist=R(6,24)*10;
+    const gs=head?tas-w:tas+w,min=dist/gs*60;
+    return{q:`Travel <span class="n">${dist} nm</span> at <span class="n">${tas} TAS</span> with a <span class="n">${w} kt ${head?'headwind':'tailwind'}</span>. How many minutes?`,unit:'min',ans:min,tol:Math.max(1.5,min*0.04),
+      steps:[`GS = ${tas} ${head?'−':'+'} ${w} = ${gs} kt`,`${gs} ÷ 60 = ${(gs/60).toFixed(2)} nm/min`,`${dist} ÷ ${(gs/60).toFixed(2)} ≈ ${min.toFixed(1)} min`],
+      say:'Groundspeed first, then distance over groundspeed.'};}},
+  fuel:{label:'Fuel dump time',gen(){
+    const rate=pick([500,750,1000,1200,1500,2000,2500,3000]),min=pick([2,3,4,5,6,7,8,9,10,11,12,14,15,16,18,20]),amt=rate*min;
+    return{q:`Dumping fuel at <span class="n">${fmt(rate)} lb/min</span>. How long to dump <span class="n">${fmt(amt)} lb</span>?`,unit:'min',ans:min,tol:0.5,
+      steps:[`${fmt(amt)} ÷ ${fmt(rate)} = ${min} min`],
+      say:'Drop common zeros first, then divide.'};}}
+};
+
+let mode='all',cur=null,start=0,tick=null,answered=false;
+let st={right:0,total:0,streak:0,time:0};
+try{const s=JSON.parse(localStorage.getItem('dmd-stats')||'null');if(s)st=Object.assign(st,s);}catch(e){}
+const save=()=>{try{localStorage.setItem('dmd-stats',JSON.stringify(st));}catch(e){}};
+const $=id=>document.getElementById(id);
+
+function renderStats(){$('sRight').textContent=st.right;$('sTotal').textContent=st.total;$('sStreak').textContent=st.streak;$('sAvg').textContent=st.total?Math.round(st.time/st.total)+'s':'–';}
+function next(){const k=mode==='all'?pick(Object.keys(TYPES)):mode;cur=Object.assign({key:k},TYPES[k].gen());answered=false;
+  $('qtype').textContent=TYPES[k].label;$('question').innerHTML=cur.q;$('unit').textContent=cur.unit;$('answer').value='';$('result').hidden=true;
+  start=Date.now();clearInterval(tick);tick=setInterval(()=>{$('timer').textContent=Math.round((Date.now()-start)/1000)+'s'},500);$('timer').textContent='0s';
+  try{$('answer').focus({preventScroll:true})}catch(e){}}
+function show(kind,verdict){const r=$('result');r.className='result '+kind;
+  r.innerHTML=`${verdict?`<div class="verdict">${verdict}</div>`:''}<ol class="steps">${cur.steps.map(s=>`<li>${s}</li>`).join('')}</ol><p class="say">Say it: <em>${cur.say}</em></p>`;r.hidden=false;}
+$('form').addEventListener('submit',e=>{e.preventDefault();if(!cur)return;const v=parseFloat($('answer').value.replace(/,/g,''));if(isNaN(v))return;
+  const sec=Math.round((Date.now()-start)/1000),ok=Math.abs(v-cur.ans)<=cur.tol,exact=cur.unit==='min'?cur.ans.toFixed(1):fmt(cur.ans);
+  if(!answered){answered=true;clearInterval(tick);st.total++;st.time+=sec;if(ok){st.right++;st.streak++;}else st.streak=0;save();renderStats();}
+  show(ok?'good':'bad',ok?`Good. ${exact} ${cur.unit} in ${sec}s`:`Answer is ${exact} ${cur.unit}`);});
+$('revealBtn').onclick=()=>{if(!cur)return;if(!answered){answered=true;clearInterval(tick);st.total++;st.streak=0;st.time+=Math.round((Date.now()-start)/1000);save();renderStats();}
+  show('reveal',`Answer: ${cur.unit==='min'?cur.ans.toFixed(1):fmt(cur.ans)} ${cur.unit}`);};
+$('nextBtn').onclick=next;
+try{const m=localStorage.getItem('dmd-mode');if(m&&(m==='all'||TYPES[m]))mode=m;}catch(e){}
+const sel=$('mode');
+sel.innerHTML='<option value="all">All skills, mixed</option>'+Object.keys(TYPES).map(k=>`<option value="${k}">${TYPES[k].label}</option>`).join('');
+sel.value=mode;
+sel.addEventListener('change',()=>{mode=sel.value;try{localStorage.setItem('dmd-mode',mode)}catch(e){};next();});
+renderStats();next();
+})();
+</script>
+
+<script>if('serviceWorker' in navigator){addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}))}</script>
+</body>
+</html>
