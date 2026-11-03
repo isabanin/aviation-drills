@@ -124,46 +124,137 @@ const pick=a=>a[Math.floor(Math.random()*a.length)];
 const fmt=n=>Math.round(n).toLocaleString('en-US');
 const fl=n=>n>=18000?'FL'+(n/100):fmt(n)+' ft';
 
+const N=x=>`<span class="n">${x}</span>`;
+const FIX=['LENDY','MERIT','PARCH','CAMRN','BRAND','SPUDS','KORRY','ROBER','JAIKE','BETTE','DYLIN','HAARP','WAVEY','ZIGGI','PROUD'];
+const r1=x=>+x.toFixed(1);
 const TYPES={
   desc:{label:'3:1 distance',gen(){
-    const from=R(240,410,10)*100,to=R(3,17)*1000,d=(from-to)/1000*3;
-    return{q:`Descend from <span class="n">${fl(from)}</span> to cross a fix at <span class="n">${fl(to)}</span>. How many nm before the fix do you start down?`,unit:'nm',ans:d,tol:2,
-      steps:[`${fmt(from)} − ${fmt(to)} = ${fmt(from-to)} ft`,`${(from-to)/1000} × 3 = ${d} nm`],
-      say:'Altitude to lose in thousands, times three.'};}},
+    const fix=pick(FIX),v=R(0,5);
+    if(v===0){const from=R(240,410,10)*100,to=R(3,17)*1000,d=(from-to)/1000*3;
+      return{q:pick([
+        `Descend from ${N(fl(from))} to cross ${fix} at ${N(fl(to))}. How many nm before ${fix} do you start down?`,
+        `ATC: "Cross ${fix} at and maintain ${N(fl(to))}." You're level at ${N(fl(from))}. Where's your top of descent?`,
+        `You're cruising at ${N(fl(from))} and need to be at ${N(fl(to))} over ${fix}. How far out do you begin the descent?`,
+        `When would you start down from ${N(fl(from))} to cross ${fix} at ${N(fl(to))}?`,
+        `Walk me through it: ${N(fl(from))} to ${N(fl(to))} at ${fix}. Top of descent?`]),
+        unit:'nm',ans:d,tol:2,steps:[`${fmt(from)} − ${fmt(to)} = ${fmt(from-to)} ft`,`${(from-to)/1000} × 3 = ${d} nm before ${fix}`],
+        say:'Altitude to lose in thousands, times three.'};}
+    if(v===1){const from=R(240,400,10)*100,to=R(5,16)*1000,off=pick([5,10,15,20]),dir=pick(['north','south','east','west']),b=(from-to)/1000*3;
+      return{q:pick([
+        `ATC: "Cross ${N(off+' miles '+dir)} of ${fix} at ${N(fl(to))}." You're at ${N(fl(from))}. How far from ${fix} do you start down?`,
+        `You need to be at ${N(fl(to))} ${N(off+' nm')} prior to ${fix}. Currently ${N(fl(from))}. Top of descent, measured from ${fix}?`]),
+        unit:'nm',ans:b+off,tol:2,steps:[`${fmt(from-to)} ft → ${(from-to)/1000} × 3 = ${b} nm`,`Restriction is ${off} nm before ${fix}: ${b} + ${off} = ${b+off} nm from ${fix}`],
+        say:'Work the 3:1 to the crossing point, then add the offset back to the fix.'};}
+    if(v===2){const from=R(240,370,10)*100,elev=pick([0,500,1000,1500,2000,2500,4000,5000]),agl=pick([1500,2000,3000]),dist=pick([5,10,15]),tgt=elev+agl,b=(from-tgt)/1000*3;
+      return{q:pick([
+        `Field elevation ${N(fmt(elev)+' ft')}. You want to be ${N(fmt(agl)+' ft AGL')} at ${N(dist+' nm')} from the airport. You're at ${N(fl(from))}. How far from the airport do you start down?`,
+        `Plan to arrive ${N(dist+' nm')} from the runway at ${N(fmt(agl)+' ft')} above a field that sits at ${N(fmt(elev)+' ft')}. Cruising at ${N(fl(from))}. Top of descent from the airport?`]),
+        unit:'nm',ans:b+dist,tol:2,steps:[`Target altitude: ${fmt(elev)} + ${fmt(agl)} = ${fmt(tgt)} ft MSL`,`${fmt(from)} − ${fmt(tgt)} = ${fmt(from-tgt)} ft → × 3 = ${r1(b)} nm`,`${r1(b)} + ${dist} = ${r1(b+dist)} nm from the airport`],
+        say:'Convert AGL to MSL first, then 3:1, then add the distance from the field.'};}
+    if(v===3){const from=R(250,390,10)*100,to=R(6,15)*1000,b=(from-to)/1000*3,ext=R(3,20),now=b+ext;
+      return{q:pick([
+        `You're ${N(now+' nm')} from ${fix} at ${N(fl(from))}, and have to cross it at ${N(fl(to))}. How many miles until you start down?`,
+        `Captain asks: "How long until top of descent?" ${N(now+' nm')} to ${fix}, crossing restriction ${N(fl(to))}, level at ${N(fl(from))}. Answer in nm.`]),
+        unit:'nm',ans:ext,tol:2,steps:[`${fmt(from-to)} ft → ${(from-to)/1000} × 3 = ${b} nm needed`,`${now} − ${b} = ${ext} nm to go`],
+        say:'Find the distance you need, subtract it from the distance you have.'};}
+    if(v===4){const to=R(3,12)*1000,nm=R(4,12)*6,top=to+nm/3*1000;
+      return{q:pick([
+        `Approach gives you ${N(nm+' track miles')} to ${fix}, which you have to cross at ${N(fl(to))}. What's the highest altitude you can be at now and still make it on a normal 3:1 descent?`,
+        `You've got ${N(nm+' nm')} to get down to ${N(fl(to))}. How high can you start from?`]),
+        unit:'ft',ans:top,tol:600,steps:[`${nm} ÷ 3 = ${nm/3} thousand ft you can lose`,`${fmt(to)} + ${fmt(nm/3*1000)} = ${fmt(top)} ft`],
+        say:'Reverse the rule: miles divided by three gives thousands of feet.'};}
+    const alt=R(5,30)*1000,d=alt/1000*3;
+    return{q:pick([`Using 3:1, how far out do you need to lose ${N(fmt(alt)+' ft')}?`,`How many track miles does it take to lose ${N(fmt(alt)+' ft')}?`,`Walk me through descent planning with the 3-to-1 rule. How far to lose ${N(fmt(alt)+' ft')}?`]),
+      unit:'nm',ans:d,tol:1,steps:[`${alt/1000} thousand × 3 = ${d} nm`],say:'Altitude to lose in thousands, times three.'};}},
+
   slow:{label:'Descent + slowdown',gen(){
-    const from=R(240,390,10)*100,to=R(4,15)*1000,v1=R(28,32)*10,v2=pick([210,220,230,240,250]);
-    const base=(from-to)/1000*3,dv=v1-v2,d=base+dv/10;
-    return{q:`<span class="n">${fl(from)}</span> to <span class="n">${fl(to)}</span> at <span class="n">${v1} kt</span>, slowing to <span class="n">${v2} kt</span> before reaching ${fmt(to)}. How far out do you start?`,unit:'nm',ans:d,tol:3,
-      steps:[`${fmt(from-to)} ft → ${(from-to)/1000} × 3 = ${base} nm`,`${v1} − ${v2} = ${dv} kt → ${dv} ÷ 10 = ${dv/10} nm`,`${base} + ${dv/10} = ${d} nm`],
-      say:'3:1 for the altitude, plus 1 nm per 10 kt to slow.'};}},
+    const fix=pick(FIX),v=R(0,4);
+    if(v===0){const from=R(240,390,10)*100,to=R(4,15)*1000,v1=R(28,32)*10,v2=pick([210,220,230,240,250]),b=(from-to)/1000*3,dv=v1-v2,d=b+dv/10;
+      return{q:pick([
+        `${N(fl(from))} to ${N(fl(to))} at ${N(v1+' kt')}, slowing to ${N(v2+' kt')} before reaching ${fmt(to)}. How far out do you start?`,
+        `ATC: "Cross ${fix} at ${N(fl(to))} and ${N(v2+' knots')}." You're at ${N(fl(from))} doing ${N(v1+' kt')}. Top of descent from ${fix}?`,
+        `You're descending at ${N(v1+' kt')} and need to be at ${N(fl(to))} and ${N(v2+' kt')} over ${fix}. Starting from ${N(fl(from))}, how far out do you begin?`]),
+        unit:'nm',ans:d,tol:3,steps:[`${fmt(from-to)} ft → ${(from-to)/1000} × 3 = ${b} nm`,`${v1} − ${v2} = ${dv} kt → ${dv} ÷ 10 = ${dv/10} nm`,`${b} + ${dv/10} = ${d} nm`],
+        say:'3:1 for the altitude, plus 1 nm per 10 kt to slow.'};}
+    if(v===1){const from=R(240,390,10)*100,to=pick([10000,9000,8000,7000,6000]),v1=R(29,32)*10,b=(from-to)/1000*3,dv=v1-250,d=b+dv/10;
+      return{q:pick([
+        `You're at ${N(fl(from))}, planning a ${N(v1+' kt')} descent. Cross ${fix} at ${N(fl(to))}. How far out do you start down?`,
+        `Descending from ${N(fl(from))} at ${N(v1+' kt')} to cross ${fix} at ${N(fl(to))}. Top of descent?`]),
+        unit:'nm',ans:d,tol:3,steps:[`${fmt(from-to)} ft → ${(from-to)/1000} × 3 = ${b} nm`,`Below 10,000 ft: 250 kt max. ${v1} − 250 = ${dv} kt → ${dv/10} nm`,`${b} + ${dv/10} = ${d} nm`],
+        say:"Don't forget the 250 kt limit below 10,000. 3:1 plus 1 nm per 10 kt."};}
+    if(v===2){const from=R(10,14)*1000,to=pick([2000,3000,4000]),off=pick([5,8,10,12]),v1=250,v2=pick([170,180,190,200,210]),b=(from-to)/1000*3,dv=v1-v2,d=off+b+dv/10;
+      return{q:pick([
+        `Approach wants you at ${N(fmt(to)+' ft')} and ${N(v2+' kt')} on a ${N(off+' nm')} final. You're at ${N(fmt(from)+' ft')}, ${N(v1+' kt')}. How far from the runway do you start down?`,
+        `Be at ${N(fmt(to)+' ft')} and ${N(v2+' kt')} at a fix ${N(off+' nm')} from the runway. Currently ${N(fmt(from)+' ft')} at ${N(v1+' kt')}. Top of descent, measured from the runway?`]),
+        unit:'nm',ans:d,tol:3,steps:[`${fmt(from-to)} ft → ${(from-to)/1000} × 3 = ${b} nm`,`${v1} − ${v2} = ${dv} kt → ${dv/10} nm`,`${b} + ${dv/10} + ${off} final = ${d} nm from the runway`],
+        say:'3:1, plus the slowdown, plus the distance the gate sits from the runway.'};}
+    if(v===3){const from=R(240,390,10)*100,to=R(5,14)*1000,v1=R(28,32)*10,v2=pick([220,230,240,250]),w=R(2,6)*10,tail=Math.random()<.65,b=(from-to)/1000*3,dv=v1-v2,wa=(tail?1:-1)*w/10,d=b+dv/10+wa;
+      return{q:pick([
+        `${N(fl(from))} to cross ${fix} at ${N(fl(to))} and ${N(v2+' kt')}. Descent speed ${N(v1+' kt')}, with a ${N(w+' kt '+(tail?'tailwind':'headwind'))} in the descent. Top of descent?`,
+        `Winds in the descent are a ${N(w+' kt '+(tail?'tailwind':'headwind'))}. You're at ${N(fl(from))}, ${N(v1+' kt')}, and need ${N(fl(to))} and ${N(v2+' kt')} at ${fix}. How far out?`]),
+        unit:'nm',ans:d,tol:3,steps:[`${fmt(from-to)} ft → ${b} nm`,`Slow ${dv} kt → + ${dv/10} nm`,`${w} kt ${tail?'tailwind → + ':'headwind → − '}${w/10} nm`,`${b} + ${dv/10} ${tail?'+':'−'} ${w/10} = ${d} nm`],
+        say:'3:1, plus 1 nm per 10 kt to slow, plus or minus 1 nm per 10 kt of wind.'};}
+    const from=R(250,390,10)*100,to=R(6,13)*1000,v1=R(28,32)*10,v2=pick([230,240,250]),b=(from-to)/1000*3,dv=v1-v2,need=b+dv/10,ext=R(3,20),now=need+ext;
+    return{q:pick([
+      `${N(now+' nm')} from ${fix} at ${N(fl(from))}, ${N(v1+' kt')}. Restriction: ${N(fl(to))} and ${N(v2+' kt')} at ${fix}. How many miles until top of descent?`,
+      `You've got ${N(now+' nm')} to ${fix}. Cross at ${N(fl(to))}, ${N(v2+' kt')}. You're at ${N(fl(from))} and ${N(v1+' kt')}. How much longer can you stay up, in nm?`]),
+      unit:'nm',ans:ext,tol:3,steps:[`${fmt(from-to)} ft → ${b} nm`,`Slow ${dv} kt → + ${dv/10} nm, total ${need} nm`,`${now} − ${need} = ${ext} nm to go`],
+      say:'Total distance needed, then subtract from what you have.'};}},
+
   rate:{label:'3° rate',gen(){
-    const gs=R(24,48)*10,vs=gs*5;
-    return{q:`Groundspeed <span class="n">${gs} kt</span>. What vertical speed holds a 3° path?`,unit:'fpm',ans:vs,tol:100,
-      steps:[`${gs} × 5 = ${fmt(vs)} fpm`,`Check: ${gs} ÷ 2 = ${gs/2}, add a zero → ${fmt(vs)}`],
-      say:'Groundspeed times five.'};}},
+    const v=R(0,3);
+    if(v===1){const ias=R(12,16)*10,w=R(1,3)*10,head=Math.random()<.6,gs=head?ias-w:ias+w;
+      return{q:`On the ILS at ${N(ias+' kt')} with a ${N(w+' kt '+(head?'headwind':'tailwind'))}. What descent rate keeps you on the glideslope?`,unit:'fpm',ans:gs*5,tol:50,
+        steps:[`GS = ${ias} ${head?'−':'+'} ${w} = ${gs} kt`,`${gs} × 5 = ${gs*5} fpm`],say:'Groundspeed first, then times five.'};}
+    if(v===2){const npm=pick([4,4.5,5,5.5,6,6.5,7,7.5,8]),gs=npm*60;
+      return{q:`You're covering ${N(npm+' nm per minute')}. What rate holds a 3° path?`,unit:'fpm',ans:gs*5,tol:100,
+        steps:[`${npm} × 60 = ${gs} kt`,`${gs} × 5 = ${fmt(gs*5)} fpm`],say:'Back to groundspeed, then times five.'};}
+    const gs=R(24,48)*10,vs=gs*5,to=R(5,15)*1000;
+    return{q:pick([`Groundspeed ${N(gs+' kt')}. What vertical speed holds a 3° path?`,`Calculate a descent to ${N(fmt(to)+' ft')} at ${N(gs+' kt')} on a 3-degree path. What rate?`,`How do you get a 3° descent rate? Work it for ${N(gs+' kt')} groundspeed.`]),
+      unit:'fpm',ans:vs,tol:100,steps:[`${gs} × 5 = ${fmt(vs)} fpm`,`Check: ${gs} ÷ 2 = ${gs/2}, add a zero → ${fmt(vs)}`],say:'Groundspeed times five. The altitude doesn\'t change the rate.'};}},
+
   vsreq:{label:'Required VS',gen(){
-    const gs=pick([240,270,300,330,360,390,420]),nm=R(3,8)*5,alt=R(4,12)*1000;
-    const npm=gs/60,min=nm/npm,vs=alt/min;
-    return{q:`You need to lose <span class="n">${fmt(alt)} ft</span> in <span class="n">${nm} nm</span> at <span class="n">${gs} kt</span> groundspeed. What vertical speed?`,unit:'fpm',ans:vs,tol:Math.max(100,vs*0.06),
-      steps:[`${gs} ÷ 60 = ${+npm.toFixed(1)} nm/min`,`${nm} ÷ ${+npm.toFixed(1)} = ${min.toFixed(1)} min`,`${fmt(alt)} ÷ ${min.toFixed(1)} ≈ ${fmt(vs)} fpm`],
-      say:'Turn distance into minutes, then divide the altitude.'};}},
+    const fix=pick(FIX),v=R(0,3);
+    if(v===1){const m=pick([2,3,4,5,6,8]),vs=pick([1000,1500,2000,2500,3000]),alt=vs*m;
+      return{q:pick([`You need to lose ${N(fmt(alt)+' ft')} in ${N(m+' minutes')}. What rate?`,`ATC needs you down ${N(fmt(alt)+' ft')} within ${N(m+' minutes')}. Minimum descent rate?`]),
+        unit:'fpm',ans:vs,tol:100,steps:[`${fmt(alt)} ÷ ${m} = ${fmt(vs)} fpm`],say:'Feet divided by minutes.'};}
+    if(v===2){const vs=pick([1000,1500,2000,2500,3000]),m=pick([3,4,5,6,8,10]),to=R(3,12)*1000,from=to+vs*m;
+      return{q:pick([`Descending at ${N(fmt(vs)+' fpm')} from ${N(fl(from))} to ${N(fl(to))}. How many minutes?`,`How long to get from ${N(fl(from))} down to ${N(fl(to))} at ${N(fmt(vs)+' fpm')}?`]),
+        unit:'min',ans:m,tol:0.5,steps:[`${fmt(from)} − ${fmt(to)} = ${fmt(from-to)} ft`,`${fmt(from-to)} ÷ ${fmt(vs)} = ${m} min`],say:'Feet to lose divided by the rate.'};}
+    const gs=pick([240,270,300,330,360,390,420]),nm=R(3,8)*5,alt=R(4,12)*1000,npm=gs/60,min=nm/npm,vs=alt/min;
+    if(v===3){const to=R(4,10)*1000,from=to+alt;
+      return{q:`ATC: "Cross ${fix} at ${N(fl(to))}." You're at ${N(fl(from))}, ${N(nm+' nm')} from ${fix}, groundspeed ${N(gs+' kt')}. What descent rate do you need?`,unit:'fpm',ans:vs,tol:Math.max(100,vs*0.06),
+        steps:[`${fmt(from)} − ${fmt(to)} = ${fmt(alt)} ft`,`${gs} ÷ 60 = ${r1(npm)} nm/min → ${nm} nm = ${min.toFixed(1)} min`,`${fmt(alt)} ÷ ${min.toFixed(1)} ≈ ${fmt(vs)} fpm`],say:'Altitude to lose, time to the fix, then divide.'};}
+    return{q:pick([`You need to lose ${N(fmt(alt)+' ft')} in ${N(nm+' nm')} at ${N(gs+' kt')} groundspeed. What vertical speed?`,`${N(nm+' miles')} to go, ${N(fmt(alt)+' ft')} to lose, ${N(gs+' kt')} over the ground. Rate?`]),unit:'fpm',ans:vs,tol:Math.max(100,vs*0.06),
+      steps:[`${gs} ÷ 60 = ${r1(npm)} nm/min`,`${nm} ÷ ${r1(npm)} = ${min.toFixed(1)} min`,`${fmt(alt)} ÷ ${min.toFixed(1)} ≈ ${fmt(vs)} fpm`],say:'Turn distance into minutes, then divide the altitude.'};}},
+
   wind:{label:'Time with wind',gen(){
-    const tas=R(18,48)*10,w=R(1,8)*10,head=Math.random()<.6,dist=R(6,24)*10;
-    const gs=head?tas-w:tas+w,min=dist/gs*60;
-    return{q:`Travel <span class="n">${dist} nm</span> at <span class="n">${tas} TAS</span> with a <span class="n">${w} kt ${head?'headwind':'tailwind'}</span>. How many minutes?`,unit:'min',ans:min,tol:Math.max(1.5,min*0.04),
-      steps:[`GS = ${tas} ${head?'−':'+'} ${w} = ${gs} kt`,`${gs} ÷ 60 = ${(gs/60).toFixed(2)} nm/min`,`${dist} ÷ ${(gs/60).toFixed(2)} ≈ ${min.toFixed(1)} min`],
-      say:'Groundspeed first, then distance over groundspeed.'};}},
+    const tas=R(18,48)*10,w=R(1,8)*10,head=Math.random()<.6,gs=head?tas-w:tas+w,wn=`${w} kt ${head?'headwind':'tailwind'}`;
+    if(Math.random()<.35){const m=R(2,15),d=gs/60*m;
+      return{q:pick([`TAS ${N(tas+' kt')}, ${N(wn)}. How far do you travel in ${N(m+' minutes')}?`,`At ${N(tas+' TAS')} into a ${N(wn)}, how many miles in ${N(m+' min')}?`].map(s=>head||!s.includes('into')?s:s.replace('into a','with a'))),
+        unit:'nm',ans:d,tol:Math.max(1,d*0.04),steps:[`GS = ${tas} ${head?'−':'+'} ${w} = ${gs} kt`,`${gs} ÷ 60 = ${(gs/60).toFixed(2)} nm/min`,`× ${m} ≈ ${r1(d)} nm`],say:'Groundspeed, nm per minute, times the minutes.'};}
+    const dist=R(6,24)*10,min=dist/gs*60;
+    return{q:pick([`Travel ${N(dist+' nm')} at ${N(tas+' TAS')} with a ${N(wn)}. How many minutes?`,`How long to travel ${N(dist+' nm')} with ${N(tas+' TAS')} and a ${N(wn)}?`,`${N(dist+' nm')} to the fix. True airspeed ${N(tas+' kt')}, ${N(wn)}. Time en route?`]),
+      unit:'min',ans:min,tol:Math.max(1.5,min*0.04),steps:[`GS = ${tas} ${head?'−':'+'} ${w} = ${gs} kt`,`${gs} ÷ 60 = ${(gs/60).toFixed(2)} nm/min`,`${dist} ÷ ${(gs/60).toFixed(2)} ≈ ${min.toFixed(1)} min`],say:'Groundspeed first, then distance over groundspeed.'};}},
+
   npm:{label:'GS to nm/min',gen(){
-    const table=Math.random()<.75,gs=table?R(2,18)*30:pick([100,140,160,200,220,250,280,320,340,350,370,400,440,460,500]),n=gs/60;
-    const r=Math.round(n*10)/10,dz=gs/10;
-    return{q:`Groundspeed <span class="n">${gs} kt</span>. How many nautical miles per minute?`,unit:'nm/min',ans:n,tol:table?0.05:0.1,
-      steps:table?[`Every 30 kt = 0.5 nm/min`,`${gs} ÷ 60 = ${n}`]:[`Drop a zero: ${dz} ÷ 6`,`${gs} ÷ 60 ≈ ${r}`],
-      say:'Groundspeed divided by 60. Every 30 knots is half a mile a minute.'};}},
+    const v=R(0,4);
+    if(v===3){const n=pick([2,2.5,3,3.5,4,4.5,5,5.5,6,6.5,7,7.5,8,8.5,9]);
+      return{q:pick([`You're covering ${N(n+' nm')} every minute. What's your groundspeed?`,`${N(n+' miles a minute')} is what groundspeed?`]),unit:'kt',ans:n*60,tol:0,steps:[`${n} × 60 = ${n*60} kt`],say:'Miles per minute times 60.'};}
+    if(v===4){const gs=R(4,16)*30,m=R(2,10),d=gs/60*m;
+      return{q:pick([`At ${N(gs+' kt')}, how far do you go in ${N(m+' minutes')}?`,`Groundspeed ${N(gs+' kt')}. Distance covered in ${N(m+' min')}?`]),unit:'nm',ans:d,tol:0.5,steps:[`${gs} ÷ 60 = ${gs/60} nm/min`,`× ${m} = ${d} nm`],say:'Miles per minute times minutes.'};}
+    const table=v<3,gs=table?R(2,18)*30:pick([100,140,160,200,220,250,280,320,340,350,370,400,440,460,500]),n=gs/60,r=Math.round(n*10)/10,dz=gs/10;
+    return{q:pick([`Groundspeed ${N(gs+' kt')}. How many nautical miles per minute?`,`${N(gs+' knots')} is how many miles a minute?`]),unit:'nm/min',ans:n,tol:table?0.05:0.1,
+      steps:table?[`Every 30 kt = 0.5 nm/min`,`${gs} ÷ 60 = ${n}`]:[`Drop a zero: ${dz} ÷ 6`,`${gs} ÷ 60 ≈ ${r}`],say:'Groundspeed divided by 60. Every 30 knots is half a mile a minute.'};}},
+
   fuel:{label:'Fuel dump time',gen(){
-    const rate=pick([500,750,1000,1200,1500,2000,2500,3000]),min=pick([2,3,4,5,6,7,8,9,10,11,12,14,15,16,18,20]),amt=rate*min;
-    return{q:`Dumping fuel at <span class="n">${fmt(rate)} lb/min</span>. How long to dump <span class="n">${fmt(amt)} lb</span>?`,unit:'min',ans:min,tol:0.5,
-      steps:[`${fmt(amt)} ÷ ${fmt(rate)} = ${min} min`],
-      say:'Drop common zeros first, then divide.'};}},
+    const rate=pick([500,750,1000,1200,1500,2000,2500,3000]),min=pick([2,3,4,5,6,7,8,9,10,11,12,14,15,16,18,20]),amt=rate*min,v=R(0,2);
+    if(v===1){const mlw=pick([72000,75000,140000,160000,180000,250000]),gw=mlw+amt;
+      return{q:`You're at ${N(fmt(gw)+' lb')} and max landing weight is ${N(fmt(mlw)+' lb')}. Dump rate ${N(fmt(rate)+' lb/min')}. How long until you can land?`,unit:'min',ans:min,tol:0.5,
+        steps:[`${fmt(gw)} − ${fmt(mlw)} = ${fmt(amt)} lb to dump`,`${fmt(amt)} ÷ ${fmt(rate)} = ${min} min`],say:'Find how much has to go, then divide by the rate.'};}
+    if(v===2)return{q:`Dumping at ${N(fmt(rate)+' lb/min')} for ${N(min+' minutes')}. How much fuel is gone?`,unit:'lb',ans:amt,tol:0,steps:[`${fmt(rate)} × ${min} = ${fmt(amt)} lb`],say:'Rate times time.'};
+    return{q:pick([`Dumping fuel at ${N(fmt(rate)+' lb/min')}. How long to dump ${N(fmt(amt)+' lb')}?`,`How long to jettison ${N(fmt(amt)+' lb')} at ${N(fmt(rate)+' pounds a minute')}?`]),unit:'min',ans:min,tol:0.5,
+      steps:[`${fmt(amt)} ÷ ${fmt(rate)} = ${min} min`],say:'Drop common zeros first, then divide.'};}},
   mult:{label:'Times table',gen(){
     const a=R(2,9),b=R(2,9),p=a*b;
     return{q:`<span class="n">${a} × ${b}</span> = ?`,unit:'',ans:p,tol:0,
@@ -189,6 +280,7 @@ function mTable(a,b){const lo=Math.min(a,b),hi=Math.max(a,b);let h='<div class="
   h+='</div><ul class="legend"><li><i style="background:var(--t-rule)"></i>Rule</li><li><i style="background:var(--t-pat)"></i>Pattern</li><li><i style="background:var(--t-sq)"></i>Anchor square</li><li><i style="background:var(--t-core)"></i>Practice set</li><li><i style="background:var(--t-mir)"></i>Mirror</li></ul>';
   return h;}
 const MIXED=Object.keys(TYPES);
+const fa=c=>{const n=c.ans;if(c.unit==='nm/min')return(+n.toFixed(2)).toString();if(Math.abs(n)>=1000)return fmt(n);return(+n.toFixed(1)).toString();};
 
 let mode='all',cur=null,start=0,tick=null,answered=false;
 let st={right:0,total:0,streak:0,time:0};
@@ -204,11 +296,11 @@ function next(){const k=mode==='all'?pick(MIXED):mode;cur=Object.assign({key:k},
 function show(kind,verdict){const r=$('result');r.className='result '+kind;
   r.innerHTML=`${verdict?`<div class="verdict">${verdict}</div>`:''}<ol class="steps">${cur.steps.map(s=>`<li>${s}</li>`).join('')}</ol><p class="say">Say it: <em>${cur.say}</em></p>${cur.extra&&kind!=='good'?cur.extra:''}`;r.hidden=false;}
 $('form').addEventListener('submit',e=>{e.preventDefault();if(!cur)return;const v=parseFloat($('answer').value.replace(/,/g,''));if(isNaN(v))return;
-  const sec=Math.round((Date.now()-start)/1000),ok=Math.abs(v-cur.ans)<=cur.tol,exact=(cur.unit==='min'||cur.unit==='nm/min')?(+cur.ans.toFixed(cur.unit==='nm/min'?2:1)).toString():fmt(cur.ans);
+  const sec=Math.round((Date.now()-start)/1000),ok=Math.abs(v-cur.ans)<=cur.tol,exact=fa(cur);
   if(!answered){answered=true;clearInterval(tick);st.total++;st.time+=sec;if(ok){st.right++;st.streak++;}else st.streak=0;save();renderStats();}
   show(ok?'good':'bad',ok?`Good. ${exact}${cur.unit?' '+cur.unit:''} in ${sec}s`:`Answer is ${exact}${cur.unit?' '+cur.unit:''}`);});
 $('revealBtn').onclick=()=>{if(!cur)return;if(!answered){answered=true;clearInterval(tick);st.total++;st.streak=0;st.time+=Math.round((Date.now()-start)/1000);save();renderStats();}
-  show('reveal',`Answer: ${(cur.unit==='min'||cur.unit==='nm/min')?(+cur.ans.toFixed(cur.unit==='nm/min'?2:1)).toString():fmt(cur.ans)}${cur.unit?' '+cur.unit:''}`);};
+  show('reveal',`Answer: ${fa(cur)}${cur.unit?' '+cur.unit:''}`);};
 $('nextBtn').onclick=next;
 try{const m=localStorage.getItem('dmd-mode');if(m&&(m==='all'||TYPES[m]))mode=m;}catch(e){}
 const sel=$('mode');
