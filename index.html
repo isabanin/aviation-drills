@@ -19,16 +19,17 @@
 :root{
   --paper:#eef2f5; --panel:#ffffff; --ink:#14243a; --muted:#5b6b7f; --rule:#d3dbe4;
   --magenta:#b0247a; --magenta-soft:#f7e3ef; --good:#1d7a4a; --good-soft:#e1f2e8; --bad:#b33a2b; --bad-soft:#f8e4e1;
+  --t-rule:#bbf7d0; --t-pat:#bfdbfe; --t-sq:#fde68a; --t-core:#fecaca; --t-mir:#f1f3f5;
   --display:"Avenir Next Condensed","Arial Narrow",system-ui,sans-serif;
   --body:system-ui,-apple-system,"Segoe UI",sans-serif;
   --mono:ui-monospace,"SF Mono",Menlo,monospace;
 }
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
   --paper:#0f1722; --panel:#172231; --ink:#e3eaf2; --muted:#93a3b6; --rule:#2a394b;
-  --magenta:#ec6ab5; --magenta-soft:#3a1c30; --good:#5cc78e; --good-soft:#143025; --bad:#f08a7a; --bad-soft:#3a1d1a; color-scheme:dark}}
+  --magenta:#ec6ab5; --magenta-soft:#3a1c30; --good:#5cc78e; --good-soft:#143025; --bad:#f08a7a; --bad-soft:#3a1d1a; --t-rule:#1c4231; --t-pat:#1f3654; --t-sq:#4d3f12; --t-core:#4d2424; --t-mir:#1b2633; color-scheme:dark}}
 :root[data-theme="dark"]{
   --paper:#0f1722; --panel:#172231; --ink:#e3eaf2; --muted:#93a3b6; --rule:#2a394b;
-  --magenta:#ec6ab5; --magenta-soft:#3a1c30; --good:#5cc78e; --good-soft:#143025; --bad:#f08a7a; --bad-soft:#3a1d1a; color-scheme:dark}
+  --magenta:#ec6ab5; --magenta-soft:#3a1c30; --good:#5cc78e; --good-soft:#143025; --bad:#f08a7a; --bad-soft:#3a1d1a; --t-rule:#1c4231; --t-pat:#1f3654; --t-sq:#4d3f12; --t-core:#4d2424; --t-mir:#1b2633; color-scheme:dark}
 *{box-sizing:border-box}
 body{background:var(--paper);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.55}
 .wrap{max-width:760px;margin:0 auto;padding-block:28px 64px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:flex;flex-direction:column;gap:36px}
@@ -67,6 +68,18 @@ h2{font-size:1.7rem}
 .say{font-size:.9rem;color:var(--muted);margin:0}
 .say em{font-style:normal;color:var(--ink)}
 
+.mt{display:grid;grid-template-columns:repeat(11,1fr);gap:2px;font-family:var(--mono);font-size:.82rem;font-variant-numeric:tabular-nums;max-width:440px;width:100%}
+.mt div{aspect-ratio:1;display:flex;align-items:center;justify-content:center;border-radius:3px;color:var(--ink)}
+.mt .hd{background:var(--ink);color:var(--panel);font-weight:600}
+.mt .hd.on{background:var(--magenta);color:#fff}
+.mt .rule{background:var(--t-rule)} .mt .pat{background:var(--t-pat)} .mt .sq{background:var(--t-sq);font-weight:600}
+.mt .core{background:var(--t-core);color:var(--bad);font-weight:600}
+.mt .mir{background:var(--t-mir);color:var(--muted);opacity:.7}
+.mt .hit{box-shadow:inset 0 0 0 2.5px var(--magenta);opacity:1;font-weight:700}
+.legend{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:.8rem;color:var(--muted);margin:0;padding:0;list-style:none}
+.legend li{display:flex;align-items:center;gap:6px}
+.legend i{width:12px;height:12px;border-radius:2px;display:inline-block}
+@media (max-width:400px){.mt{font-size:.7rem;gap:1px}}
 @media (max-width:480px){h1{font-size:2.1rem} .question{font-size:1.1rem}}
 @media (prefers-reduced-motion:no-preference){.result{animation:in .18s ease-out}@keyframes in{from{transform:translateY(4px)}to{transform:none}}}
 </style>
@@ -151,17 +164,31 @@ const TYPES={
     return{q:`Dumping fuel at <span class="n">${fmt(rate)} lb/min</span>. How long to dump <span class="n">${fmt(amt)} lb</span>?`,unit:'min',ans:min,tol:0.5,
       steps:[`${fmt(amt)} ÷ ${fmt(rate)} = ${min} min`],
       say:'Drop common zeros first, then divide.'};}},
-  mult:{label:'Times table',solo:true,gen(){
-    const facts=[[3,3,'Anchor square'],[3,4,'Double-double 3: 6, 12'],[3,6,'Double 3×3: 9 + 9'],[3,7,'2×7 + 7 = 14 + 7'],[3,8,'Double 3 three times: 6, 12, 24'],[3,9,'3×10 − 3 = 30 − 3'],
-      [4,4,'Anchor square'],[4,6,'Double-double 6: 12, 24'],[4,7,'Double-double 7: 14, 28'],[4,8,'Double-double 8: 16, 32'],[4,9,'4×10 − 4 = 40 − 4'],
-      [6,6,'Anchor square'],[6,7,'6×6 + 6 = 36 + 6'],[6,8,'5×8 + 8 = 40 + 8'],[6,9,'6×10 − 6 = 60 − 6'],
-      [7,7,'Anchor square'],[7,8,'5, 6, 7, 8: 56 = 7×8'],[7,9,'7×10 − 7 = 70 − 7'],[8,8,'Anchor square'],[8,9,'8×10 − 8 = 80 − 8'],[9,9,'9×10 − 9 = 90 − 9']];
-    let [a,b,h]=pick(facts);if(Math.random()<.5)[a,b]=[b,a];const p=a*b;
+  mult:{label:'Times table',gen(){
+    const a=R(1,10),b=R(1,10),p=a*b;
     return{q:`<span class="n">${a} × ${b}</span> = ?`,unit:'',ans:p,tol:0,
-      steps:[`${a} × ${b} = ${p}`,h],
+      steps:[`${a} × ${b} = ${p}`,mHint(a,b)],extra:mTable(a,b),
       say:'Answer from memory. Target: under 3 seconds, no counting.'};}}
 };
-const MIXED=Object.keys(TYPES).filter(k=>!TYPES[k].solo);
+function mCat(a,b){const lo=Math.min(a,b),hi=Math.max(a,b);
+  if(lo===1||hi===10)return'rule';if(lo===2||lo===5||hi===5)return'pat';if(lo===hi)return'sq';return'core';}
+const MH={'3,4':'Double-double 3: 6, 12','3,6':'Double 3×3: 9 + 9','3,7':'2×7 + 7 = 14 + 7','3,8':'Double 3 three times: 6, 12, 24','3,9':'3×10 − 3 = 30 − 3',
+  '4,6':'Double-double 6: 12, 24','4,7':'Double-double 7: 14, 28','4,8':'Double-double 8: 16, 32','4,9':'4×10 − 4 = 40 − 4',
+  '6,7':'6×6 + 6 = 36 + 6','6,8':'5×8 + 8 = 40 + 8','6,9':'6×10 − 6 = 60 − 6','7,8':'5, 6, 7, 8: 56 = 7×8','7,9':'7×10 − 7 = 70 − 7','8,9':'8×10 − 8 = 80 − 8'};
+function mHint(a,b){const lo=Math.min(a,b),hi=Math.max(a,b),k=mCat(a,b);
+  if(lo===1)return`Anything × 1 is itself: ${hi}`;
+  if(hi===10)return`× 10 adds a zero: ${lo} → ${lo*10}`;
+  if(lo===2)return`× 2 is doubling: ${hi} + ${hi}`;
+  if(k==='pat'){const o=lo===5?hi:lo;return`× 5 is half of × 10: ${o*10} ÷ 2`;}
+  if(k==='sq'){const n=lo;return n===9?'Anchor square (9×10 − 9 = 90 − 9)':'Anchor square';}
+  return MH[lo+','+hi];}
+function mTable(a,b){const lo=Math.min(a,b),hi=Math.max(a,b);let h='<div class="mt" role="img" aria-label="Multiplication table, '+a+' times '+b+' highlighted"><div class="hd">×</div>';
+  for(let j=1;j<=10;j++)h+=`<div class="hd${j===b?' on':''}">${j}</div>`;
+  for(let i=1;i<=10;i++){h+=`<div class="hd${i===a?' on':''}">${i}</div>`;
+    for(let j=1;j<=10;j++){const hit=(i===a&&j===b)||(i===lo&&j===hi);h+=`<div class="${i>j?'mir':mCat(i,j)}${hit?' hit':''}">${i*j}</div>`;}}
+  h+='</div><ul class="legend"><li><i style="background:var(--t-rule)"></i>Rule</li><li><i style="background:var(--t-pat)"></i>Pattern</li><li><i style="background:var(--t-sq)"></i>Anchor square</li><li><i style="background:var(--t-core)"></i>Practice set</li><li><i style="background:var(--t-mir)"></i>Mirror</li></ul>';
+  return h;}
+const MIXED=Object.keys(TYPES);
 
 let mode='all',cur=null,start=0,tick=null,answered=false;
 let st={right:0,total:0,streak:0,time:0};
@@ -175,7 +202,7 @@ function next(){const k=mode==='all'?pick(MIXED):mode;cur=Object.assign({key:k},
   start=Date.now();clearInterval(tick);tick=setInterval(()=>{$('timer').textContent=Math.round((Date.now()-start)/1000)+'s'},500);$('timer').textContent='0s';
   try{$('answer').focus({preventScroll:true})}catch(e){}}
 function show(kind,verdict){const r=$('result');r.className='result '+kind;
-  r.innerHTML=`${verdict?`<div class="verdict">${verdict}</div>`:''}<ol class="steps">${cur.steps.map(s=>`<li>${s}</li>`).join('')}</ol><p class="say">Say it: <em>${cur.say}</em></p>`;r.hidden=false;}
+  r.innerHTML=`${verdict?`<div class="verdict">${verdict}</div>`:''}<ol class="steps">${cur.steps.map(s=>`<li>${s}</li>`).join('')}</ol><p class="say">Say it: <em>${cur.say}</em></p>${cur.extra&&kind!=='good'?cur.extra:''}`;r.hidden=false;}
 $('form').addEventListener('submit',e=>{e.preventDefault();if(!cur)return;const v=parseFloat($('answer').value.replace(/,/g,''));if(isNaN(v))return;
   const sec=Math.round((Date.now()-start)/1000),ok=Math.abs(v-cur.ans)<=cur.tol,exact=(cur.unit==='min'||cur.unit==='nm/min')?(+cur.ans.toFixed(cur.unit==='nm/min'?2:1)).toString():fmt(cur.ans);
   if(!answered){answered=true;clearInterval(tick);st.total++;st.time+=sec;if(ok){st.right++;st.streak++;}else st.streak=0;save();renderStats();}
