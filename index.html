@@ -168,7 +168,7 @@ const TYPES={
       unit:'nm',ans:d,tol:1,steps:[`${alt/1000} thousand × 3 = ${d} nm`],say:'Altitude to lose in thousands, times three.'};}},
 
   slow:{label:'Descent + slowdown',gen(){
-    const fix=pick(FIX),v=R(0,4);
+    const fix=pick(FIX),v=pick([0,1,2,4]);
     if(v===0){const from=R(240,390,10)*100,to=R(4,15)*1000,v1=R(28,32)*10,v2=pick([210,220,230,240,250]),b=(from-to)/1000*3,dv=v1-v2,d=b+dv/10;
       return{q:pick([
         `${N(fl(from))} to ${N(fl(to))} at ${N(v1+' kt')}, slowing to ${N(v2+' kt')} before reaching ${fmt(to)}. How far out do you start?`,
@@ -188,12 +188,6 @@ const TYPES={
         `Be at ${N(fmt(to)+' ft')} and ${N(v2+' kt')} at a fix ${N(off+' nm')} from the runway. Currently ${N(fmt(from)+' ft')} at ${N(v1+' kt')}. Top of descent, measured from the runway?`]),
         unit:'nm',ans:d,tol:3,steps:[`${fmt(from-to)} ft → ${(from-to)/1000} × 3 = ${b} nm`,`${v1} − ${v2} = ${dv} kt → ${dv/10} nm`,`${b} + ${dv/10} + ${off} final = ${d} nm from the runway`],
         say:'3:1, plus the slowdown, plus the distance the gate sits from the runway.'};}
-    if(v===3){const from=R(240,390,10)*100,to=R(5,14)*1000,v1=R(28,32)*10,v2=pick([220,230,240,250]),w=R(2,6)*10,tail=Math.random()<.65,b=(from-to)/1000*3,dv=v1-v2,wa=(tail?1:-1)*w/10,d=b+dv/10+wa;
-      return{q:pick([
-        `${N(fl(from))} to cross ${fix} at ${N(fl(to))} and ${N(v2+' kt')}. Descent speed ${N(v1+' kt')}, with a ${N(w+' kt '+(tail?'tailwind':'headwind'))} in the descent. Top of descent?`,
-        `Winds in the descent are a ${N(w+' kt '+(tail?'tailwind':'headwind'))}. You're at ${N(fl(from))}, ${N(v1+' kt')}, and need ${N(fl(to))} and ${N(v2+' kt')} at ${fix}. How far out?`]),
-        unit:'nm',ans:d,tol:3,steps:[`${fmt(from-to)} ft → ${b} nm`,`Slow ${dv} kt → + ${dv/10} nm`,`${w} kt ${tail?'tailwind → + ':'headwind → − '}${w/10} nm`,`${b} + ${dv/10} ${tail?'+':'−'} ${w/10} = ${d} nm`],
-        say:'3:1, plus 1 nm per 10 kt to slow, plus or minus 1 nm per 10 kt of wind.'};}
     const from=R(250,390,10)*100,to=R(6,13)*1000,v1=R(28,32)*10,v2=pick([230,240,250]),b=(from-to)/1000*3,dv=v1-v2,need=b+dv/10,ext=R(3,20),now=need+ext;
     return{q:pick([
       `${N(now+' nm')} from ${fix} at ${N(fl(from))}, ${N(v1+' kt')}. Restriction: ${N(fl(to))} and ${N(v2+' kt')} at ${fix}. How many miles until top of descent?`,
