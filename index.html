@@ -165,7 +165,7 @@ const TYPES={
       steps:[`${fmt(amt)} ÷ ${fmt(rate)} = ${min} min`],
       say:'Drop common zeros first, then divide.'};}},
   mult:{label:'Times table',gen(){
-    const a=R(1,10),b=R(1,10),p=a*b;
+    const a=R(2,9),b=R(2,9),p=a*b;
     return{q:`<span class="n">${a} × ${b}</span> = ?`,unit:'',ans:p,tol:0,
       steps:[`${a} × ${b} = ${p}`,mHint(a,b)],extra:mTable(a,b),
       say:'Answer from memory. Target: under 3 seconds, no counting.'};}}
