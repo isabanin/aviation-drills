@@ -140,6 +140,12 @@ const TYPES={
     return{q:`Travel <span class="n">${dist} nm</span> at <span class="n">${tas} TAS</span> with a <span class="n">${w} kt ${head?'headwind':'tailwind'}</span>. How many minutes?`,unit:'min',ans:min,tol:Math.max(1.5,min*0.04),
       steps:[`GS = ${tas} ${head?'−':'+'} ${w} = ${gs} kt`,`${gs} ÷ 60 = ${(gs/60).toFixed(2)} nm/min`,`${dist} ÷ ${(gs/60).toFixed(2)} ≈ ${min.toFixed(1)} min`],
       say:'Groundspeed first, then distance over groundspeed.'};}},
+  npm:{label:'GS to nm/min',gen(){
+    const table=Math.random()<.75,gs=table?R(2,18)*30:pick([100,140,160,200,220,250,280,320,340,350,370,400,440,460,500]),n=gs/60;
+    const r=Math.round(n*10)/10,dz=gs/10;
+    return{q:`Groundspeed <span class="n">${gs} kt</span>. How many nautical miles per minute?`,unit:'nm/min',ans:n,tol:table?0.05:0.1,
+      steps:table?[`Every 30 kt = 0.5 nm/min`,`${gs} ÷ 60 = ${n}`]:[`Drop a zero: ${dz} ÷ 6`,`${gs} ÷ 60 ≈ ${r}`],
+      say:'Groundspeed divided by 60. Every 30 knots is half a mile a minute.'};}},
   fuel:{label:'Fuel dump time',gen(){
     const rate=pick([500,750,1000,1200,1500,2000,2500,3000]),min=pick([2,3,4,5,6,7,8,9,10,11,12,14,15,16,18,20]),amt=rate*min;
     return{q:`Dumping fuel at <span class="n">${fmt(rate)} lb/min</span>. How long to dump <span class="n">${fmt(amt)} lb</span>?`,unit:'min',ans:min,tol:0.5,
@@ -161,11 +167,11 @@ function next(){const k=mode==='all'?pick(Object.keys(TYPES)):mode;cur=Object.as
 function show(kind,verdict){const r=$('result');r.className='result '+kind;
   r.innerHTML=`${verdict?`<div class="verdict">${verdict}</div>`:''}<ol class="steps">${cur.steps.map(s=>`<li>${s}</li>`).join('')}</ol><p class="say">Say it: <em>${cur.say}</em></p>`;r.hidden=false;}
 $('form').addEventListener('submit',e=>{e.preventDefault();if(!cur)return;const v=parseFloat($('answer').value.replace(/,/g,''));if(isNaN(v))return;
-  const sec=Math.round((Date.now()-start)/1000),ok=Math.abs(v-cur.ans)<=cur.tol,exact=cur.unit==='min'?cur.ans.toFixed(1):fmt(cur.ans);
+  const sec=Math.round((Date.now()-start)/1000),ok=Math.abs(v-cur.ans)<=cur.tol,exact=(cur.unit==='min'||cur.unit==='nm/min')?(+cur.ans.toFixed(cur.unit==='nm/min'?2:1)).toString():fmt(cur.ans);
   if(!answered){answered=true;clearInterval(tick);st.total++;st.time+=sec;if(ok){st.right++;st.streak++;}else st.streak=0;save();renderStats();}
   show(ok?'good':'bad',ok?`Good. ${exact} ${cur.unit} in ${sec}s`:`Answer is ${exact} ${cur.unit}`);});
 $('revealBtn').onclick=()=>{if(!cur)return;if(!answered){answered=true;clearInterval(tick);st.total++;st.streak=0;st.time+=Math.round((Date.now()-start)/1000);save();renderStats();}
-  show('reveal',`Answer: ${cur.unit==='min'?cur.ans.toFixed(1):fmt(cur.ans)} ${cur.unit}`);};
+  show('reveal',`Answer: ${(cur.unit==='min'||cur.unit==='nm/min')?(+cur.ans.toFixed(cur.unit==='nm/min'?2:1)).toString():fmt(cur.ans)} ${cur.unit}`);};
 $('nextBtn').onclick=next;
 try{const m=localStorage.getItem('dmd-mode');if(m&&(m==='all'||TYPES[m]))mode=m;}catch(e){}
 const sel=$('mode');
