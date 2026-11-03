@@ -143,6 +143,7 @@ const fl=n=>n>=18000?'FL'+(n/100):fmt(n)+' ft';
 const N=x=>`<span class="n">${x}</span>`;
 const FIX=['LENDY','MERIT','PARCH','CAMRN','BRAND','SPUDS','KORRY','ROBER','JAIKE','BETTE','DYLIN','HAARP','WAVEY','ZIGGI','PROUD'];
 const r1=x=>+x.toFixed(1);
+const nt=(t,v)=>t===10000&&v===250?pick([9000,11000]):t;
 const TYPES={
   desc:{label:'3:1 distance',gen(){
     const fix=pick(FIX),v=R(0,5);
@@ -185,7 +186,7 @@ const TYPES={
 
   slow:{label:'Descent + slowdown',gen(){
     const fix=pick(FIX),v=pick([0,1,2,4]);
-    if(v===0){const from=R(240,390,10)*100,to=R(4,15)*1000,v1=R(28,32)*10,v2=pick([210,220,230,240,250]),b=(from-to)/1000*3,dv=v1-v2,d=b+dv/10;
+    if(v===0){const from=R(240,390,10)*100,v2=pick([210,220,230,240,250]),to=nt(R(4,15)*1000,v2),v1=R(28,32)*10,b=(from-to)/1000*3,dv=v1-v2,d=b+dv/10;
       return{q:pick([
         `${N(fl(from))} to ${N(fl(to))} at ${N(v1+' kt')}. You're assigned ${N(v2+' kt')} at ${fmt(to)}. How far out do you start?`,
         `ATC: "Cross ${fix} at ${N(fl(to))} and ${N(v2+' knots')}." You're at ${N(fl(from))} doing ${N(v1+' kt')}. Top of descent from ${fix}?`,
@@ -194,8 +195,8 @@ const TYPES={
         say:'3:1 for the altitude, plus 1 nm per 10 kt to slow.'};}
     if(v===1){const from=R(240,390,10)*100,to=pick([9000,8000,7000,6000,5000]),v1=R(29,32)*10,b=(from-to)/1000*3,dv=v1-250,d=b+dv/10;
       return{q:pick([
-        `You're at ${N(fl(from))}, planning a ${N(v1+' kt')} descent. Cross ${fix} at ${N(fl(to))}, which takes you below 10,000 ft. How far out do you start down?`,
-        `Descending from ${N(fl(from))} at ${N(v1+' kt')} to cross ${fix} at ${N(fl(to))}. No speed is assigned, but you're going below 10,000 ft. Top of descent?`]),
+        `You're at ${N(fl(from))}, planning a ${N(v1+' kt')} descent. Cross ${fix} at ${N(fl(to))}. How far out do you start down?`,
+        `Descending from ${N(fl(from))} at ${N(v1+' kt')} to cross ${fix} at ${N(fl(to))}. Top of descent?`]),
         unit:'nm',ans:d,tol:3,steps:[`${fmt(from-to)} ft → ${(from-to)/1000} × 3 = ${b} nm`,`Going below 10,000 ft: slow to 250 kt by 10,000. ${v1} − 250 = ${dv} kt → ${dv/10} nm`,`${b} + ${dv/10} = ${d} nm`],
         say:"Don't forget the 250 kt limit below 10,000. 3:1 plus 1 nm per 10 kt."};}
     if(v===2){const from=R(10,14)*1000,to=pick([2000,3000,4000]),off=pick([5,8,10,12]),v1=250,v2=pick([170,180,190,200,210]),b=(from-to)/1000*3,dv=v1-v2,d=off+b+dv/10;
@@ -204,7 +205,7 @@ const TYPES={
         `Be at ${N(fmt(to)+' ft')} and ${N(v2+' kt')} at a fix ${N(off+' nm')} from the runway. Currently ${N(fmt(from)+' ft')} at ${N(v1+' kt')}. Top of descent, measured from the runway?`]),
         unit:'nm',ans:d,tol:3,steps:[`${fmt(from-to)} ft → ${(from-to)/1000} × 3 = ${b} nm`,`${v1} − ${v2} = ${dv} kt → ${dv/10} nm`,`${b} + ${dv/10} + ${off} final = ${d} nm from the runway`],
         say:'3:1, plus the slowdown, plus the distance the gate sits from the runway.'};}
-    const from=R(250,390,10)*100,to=R(6,13)*1000,v1=R(28,32)*10,v2=pick([230,240,250]),b=(from-to)/1000*3,dv=v1-v2,need=b+dv/10,ext=R(3,20),now=need+ext;
+    const from=R(250,390,10)*100,v2=pick([230,240,250]),to=nt(R(6,13)*1000,v2),v1=R(28,32)*10,b=(from-to)/1000*3,dv=v1-v2,need=b+dv/10,ext=R(3,20),now=need+ext;
     return{q:pick([
       `${N(now+' nm')} from ${fix} at ${N(fl(from))}, ${N(v1+' kt')}. Restriction: ${N(fl(to))} and ${N(v2+' kt')} at ${fix}. How many miles until top of descent?`,
       `You've got ${N(now+' nm')} to ${fix}. Cross at ${N(fl(to))}, ${N(v2+' kt')}. You're at ${N(fl(from))} and ${N(v1+' kt')}. How much longer can you stay up, in nm?`]),
@@ -294,7 +295,7 @@ const SIMPLE={
   desc(e){const from=e?pick([25000,30000,35000,40000]):R(24,41)*1000,to=e?pick([5000,10000,15000]):R(3,17)*1000,d=(from-to)/1000*3;
     return{q:`Descend from ${N(fl(from))} to ${N(fl(to))}. How many nm before the fix do you start down?`,unit:'nm',ans:d,tol:e?0:2,
       steps:[`${fmt(from)} − ${fmt(to)} = ${fmt(from-to)} ft`,`${(from-to)/1000} × 3 = ${d} nm`],say:'Altitude to lose in thousands, times three.'};},
-  slow(e){const from=e?pick([30000,35000,40000]):R(24,39)*1000,to=e?pick([5000,10000]):R(4,15)*1000,v1=e?300:R(28,32)*10,v2=e?pick([250,200]):pick([210,220,230,240,250]),b=(from-to)/1000*3,dv=v1-v2,d=b+dv/10;
+  slow(e){const from=e?pick([30000,35000,40000]):R(24,39)*1000,v2=e?pick([250,200]):pick([210,220,230,240,250]),to=e?(v2===250?5000:pick([5000,10000])):nt(R(4,15)*1000,v2),v1=e?300:R(28,32)*10,b=(from-to)/1000*3,dv=v1-v2,d=b+dv/10;
     return{q:`Cross a fix at ${N(fl(to))} and ${N(v2+' kt')}. You're at ${N(fl(from))}, descending at ${N(v1+' kt')}. How far before the fix do you start down?`,unit:'nm',ans:d,tol:e?0:3,
       steps:[`${fmt(from-to)} ft → ${(from-to)/1000} × 3 = ${b} nm`,`${v1} − ${v2} = ${dv} kt → ${dv} ÷ 10 = ${dv/10} nm`,`${b} + ${dv/10} = ${d} nm`],say:'3:1 for the altitude, plus 1 nm per 10 kt to slow.'};},
   rate(e){const gs=e?pick([200,250,300,350,400,450,500]):R(12,48)*10,vs=gs*5;
