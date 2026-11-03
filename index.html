@@ -149,7 +149,7 @@ const TYPES={
       return{q:pick([
         `Field elevation ${N(fmt(elev)+' ft')}. You want to be ${N(fmt(agl)+' ft AGL')} at ${N(dist+' nm')} from the airport. You're at ${N(fl(from))}. How far from the airport do you start down?`,
         `Plan to arrive ${N(dist+' nm')} from the runway at ${N(fmt(agl)+' ft')} above a field that sits at ${N(fmt(elev)+' ft')}. Cruising at ${N(fl(from))}. Top of descent from the airport?`]),
-        unit:'nm',ans:b+dist,tol:2,steps:[`Target altitude: ${fmt(elev)} + ${fmt(agl)} = ${fmt(tgt)} ft MSL`,`${fmt(from)} − ${fmt(tgt)} = ${fmt(from-tgt)} ft → × 3 = ${r1(b)} nm`,`${r1(b)} + ${dist} = ${r1(b+dist)} nm from the airport`],
+        unit:'nm',ans:b+dist,tol:2,steps:[`Target altitude: ${fmt(elev)} + ${fmt(agl)} = ${fmt(tgt)} ft MSL`,`${fmt(from)} − ${fmt(tgt)} = ${fmt(from-tgt)} ft → ${r1((from-tgt)/1000)} × 3 = ${r1(b)} nm`,`${r1(b)} + ${dist} = ${r1(b+dist)} nm from the airport`],
         say:'Convert AGL to MSL first, then 3:1, then add the distance from the field.'};}
     if(v===3){const from=R(250,390,10)*100,to=R(6,15)*1000,b=(from-to)/1000*3,ext=R(3,20),now=b+ext;
       return{q:pick([
@@ -232,7 +232,7 @@ const TYPES={
     const tas=R(18,48)*10,w=R(1,8)*10,head=Math.random()<.6,gs=head?tas-w:tas+w,wn=`${w} kt ${head?'headwind':'tailwind'}`;
     if(Math.random()<.35){const m=R(2,15),d=gs/60*m;
       return{q:pick([`TAS ${N(tas+' kt')}, ${N(wn)}. How far do you travel in ${N(m+' minutes')}?`,`At ${N(tas+' TAS')} into a ${N(wn)}, how many miles in ${N(m+' min')}?`].map(s=>head||!s.includes('into')?s:s.replace('into a','with a'))),
-        unit:'nm',ans:d,tol:Math.max(1,d*0.04),steps:[`GS = ${tas} ${head?'−':'+'} ${w} = ${gs} kt`,`${gs} ÷ 60 = ${(gs/60).toFixed(2)} nm/min`,`× ${m} ≈ ${r1(d)} nm`],say:'Groundspeed, nm per minute, times the minutes.'};}
+        unit:'nm',ans:d,tol:Math.max(1,d*0.04),steps:[`GS = ${tas} ${head?'−':'+'} ${w} = ${gs} kt`,`${gs} ÷ 60 = ${(gs/60).toFixed(2)} nm/min`,`${(gs/60).toFixed(2)} × ${m} ≈ ${r1(d)} nm`],say:'Groundspeed, nm per minute, times the minutes.'};}
     const dist=R(6,24)*10,min=dist/gs*60;
     return{q:pick([`Travel ${N(dist+' nm')} at ${N(tas+' TAS')} with a ${N(wn)}. How many minutes?`,`How long to travel ${N(dist+' nm')} with ${N(tas+' TAS')} and a ${N(wn)}?`,`${N(dist+' nm')} to the fix. True airspeed ${N(tas+' kt')}, ${N(wn)}. Time en route?`]),
       unit:'min',ans:min,tol:Math.max(1.5,min*0.04),steps:[`GS = ${tas} ${head?'−':'+'} ${w} = ${gs} kt`,`${gs} ÷ 60 = ${(gs/60).toFixed(2)} nm/min`,`${dist} ÷ ${(gs/60).toFixed(2)} ≈ ${min.toFixed(1)} min`],say:'Groundspeed first, then distance over groundspeed.'};}},
@@ -242,7 +242,7 @@ const TYPES={
     if(v===3){const n=pick([2,2.5,3,3.5,4,4.5,5,5.5,6,6.5,7,7.5,8,8.5,9]);
       return{q:pick([`You're covering ${N(n+' nm')} every minute. What's your groundspeed?`,`${N(n+' miles a minute')} is what groundspeed?`]),unit:'kt',ans:n*60,tol:0,steps:[`${n} × 60 = ${n*60} kt`],say:'Miles per minute times 60.'};}
     if(v===4){const gs=R(4,16)*30,m=R(2,10),d=gs/60*m;
-      return{q:pick([`At ${N(gs+' kt')}, how far do you go in ${N(m+' minutes')}?`,`Groundspeed ${N(gs+' kt')}. Distance covered in ${N(m+' min')}?`]),unit:'nm',ans:d,tol:0.5,steps:[`${gs} ÷ 60 = ${gs/60} nm/min`,`× ${m} = ${d} nm`],say:'Miles per minute times minutes.'};}
+      return{q:pick([`At ${N(gs+' kt')}, how far do you go in ${N(m+' minutes')}?`,`Groundspeed ${N(gs+' kt')}. Distance covered in ${N(m+' min')}?`]),unit:'nm',ans:d,tol:0.5,steps:[`${gs} ÷ 60 = ${gs/60} nm/min`,`${gs/60} × ${m} = ${d} nm`],say:'Miles per minute times minutes.'};}
     const table=v<3,gs=table?R(2,18)*30:pick([100,140,160,200,220,250,280,320,340,350,370,400,440,460,500]),n=gs/60,r=Math.round(n*10)/10,dz=gs/10;
     return{q:pick([`Groundspeed ${N(gs+' kt')}. How many nautical miles per minute?`,`${N(gs+' knots')} is how many miles a minute?`]),unit:'nm/min',ans:n,tol:table?0.05:0.1,
       steps:table?[`Every 30 kt = 0.5 nm/min`,`${gs} ÷ 60 = ${n}`]:[`Drop a zero: ${dz} ÷ 6`,`${gs} ÷ 60 ≈ ${r}`],say:'Groundspeed divided by 60. Every 30 knots is half a mile a minute.'};}},
