@@ -266,11 +266,11 @@ const TYPES={
     if(v===2)return{q:`Dumping at ${N(fmt(rate)+' lb/min')} for ${N(min+' minutes')}. How much fuel is gone?`,unit:'lb',ans:amt,tol:0,steps:[`${fmt(rate)} × ${min} = ${fmt(amt)} lb`],say:'Rate times time.'};
     return{q:pick([`Dumping fuel at ${N(fmt(rate)+' lb/min')}. How long to dump ${N(fmt(amt)+' lb')}?`,`How long to jettison ${N(fmt(amt)+' lb')} at ${N(fmt(rate)+' pounds a minute')}?`]),unit:'min',ans:min,tol:0.5,
       steps:[`${fmt(amt)} ÷ ${fmt(rate)} = ${min} min`],say:'Drop common zeros first, then divide.'};}},
-  mult:{label:'Times table',gen(){
-    const a=R(2,9),b=R(2,9),p=a*b;
+  mult:{label:'Times table',gen(easy){
+    const [a,b]=mPick(easy),p=a*b;
     return{q:`<span class="n">${a} × ${b}</span> = ?`,unit:'',ans:p,tol:0,
       steps:[`${a} × ${b} = ${p}`,mHint(a,b)],extra:mTable(a,b),
-      say:'Answer from memory. Target: under 3 seconds, no counting.'};}}
+      pair:Math.min(a,b)+'x'+Math.max(a,b),say:'Answer from memory. Target: under 3 seconds, no counting.'};}}
 };
 function mCat(a,b){const lo=Math.min(a,b),hi=Math.max(a,b);
   if(lo===1||hi===10)return'rule';if(lo===2||lo===5||hi===5)return'pat';if(lo===hi)return'sq';return'core';}
@@ -319,9 +319,20 @@ const SIMPLE={
   fuel(e){const rate=e?pick([1000,2000]):pick([500,750,1000,1200,1500,2000,2500,3000]),min=e?R(2,10):pick([2,3,4,5,6,7,8,9,10,11,12,14,15,16,18,20]),amt=rate*min;
     return{q:`Dumping fuel at ${N(fmt(rate)+' lb/min')}. How long to dump ${N(fmt(amt)+' lb')}?`,unit:'min',ans:min,tol:0,
       steps:[`${fmt(amt)} ÷ ${fmt(rate)} = ${min} min`],say:'Drop common zeros first, then divide.'};},
-  mult(e){let q;do{q=TYPES.mult.gen()}while(e&&Math.min(...q.steps[0].split(' = ')[0].split(' × ').map(Number))>5);return q;}
+  mult(e){return TYPES.mult.gen(e);}
 };
 const LEVELS=['easy','medium','hard'];
+// Times table weighting: 50% practice set, 30% squares (6-9 doubled), 20% x2/x5. Missed pairs come back sooner.
+const MP=[];for(let a=2;a<=9;a++)for(let b=a;b<=9;b++)MP.push([a,b]);
+const MPOOL={core:MP.filter(([a,b])=>mCat(a,b)==='core'),sq:MP.filter(([a,b])=>mCat(a,b)==='sq').flatMap(x=>x[0]>=6?[x,x]:[x]),pat:MP.filter(([a,b])=>mCat(a,b)==='pat'),easy:MP.filter(([a])=>a<=5)};
+let miss=[],lastPair='';
+try{const m=JSON.parse(localStorage.getItem('dmd-miss')||'[]');if(Array.isArray(m))miss=m.filter(k=>/^[2-9]x[2-9]$/.test(k));}catch(e){}
+function mPick(easy){
+  const ok=k=>k!==lastPair&&(!easy||+k[0]<=5),due=miss.filter(ok);let p;
+  if(due.length&&Math.random()<.3)p=pick(due).split('x').map(Number);
+  else for(let i=0;i<20;i++){const r=Math.random();p=easy?pick(MPOOL.easy):pick(r<.5?MPOOL.core:r<.8?MPOOL.sq:MPOOL.pat);if(p.join('x')!==lastPair)break;}
+  lastPair=p.join('x');return Math.random()<.5?p:[p[1],p[0]];}
+function mTrack(k,ok){const i=miss.indexOf(k);if(ok){if(i>=0)miss.splice(i,1);}else if(i<0)miss.push(k);try{localStorage.setItem('dmd-miss',JSON.stringify(miss))}catch(e){}}
 const MIXED=Object.keys(TYPES);
 const fa=c=>{const n=c.ans;if(c.unit==='nm/min')return(+n.toFixed(2)).toString();if(Math.abs(n)>=1000)return fmt(n);return(+n.toFixed(1)).toString();};
 
@@ -340,9 +351,9 @@ function show(kind,verdict){const r=$('result');r.className='result '+kind;
   r.innerHTML=`${verdict?`<div class="verdict">${verdict}</div>`:''}<ol class="steps">${cur.steps.map(s=>`<li>${s}</li>`).join('')}</ol><p class="say">Say it: <em>${cur.say}</em></p>${cur.extra&&kind!=='good'?cur.extra:''}`;r.hidden=false;}
 $('form').addEventListener('submit',e=>{e.preventDefault();if(!cur)return;const v=parseFloat($('answer').value.replace(/,/g,''));if(isNaN(v))return;
   const sec=Math.round((Date.now()-start)/1000),ok=Math.abs(v-cur.ans)<=cur.tol,exact=fa(cur);
-  if(!answered){answered=true;clearInterval(tick);st.total++;st.time+=sec;if(ok){st.right++;st.streak++;}else st.streak=0;save();renderStats();}
+  if(!answered){answered=true;clearInterval(tick);st.total++;st.time+=sec;if(ok){st.right++;st.streak++;}else st.streak=0;if(cur.pair)mTrack(cur.pair,ok);save();renderStats();}
   show(ok?'good':'bad',ok?`Good. ${exact}${cur.unit?' '+cur.unit:''} in ${sec}s`:`Answer is ${exact}${cur.unit?' '+cur.unit:''}`);});
-$('revealBtn').onclick=()=>{if(!cur)return;if(!answered){answered=true;clearInterval(tick);st.total++;st.streak=0;st.time+=Math.round((Date.now()-start)/1000);save();renderStats();}
+$('revealBtn').onclick=()=>{if(!cur)return;if(!answered){answered=true;clearInterval(tick);st.total++;st.streak=0;st.time+=Math.round((Date.now()-start)/1000);if(cur.pair)mTrack(cur.pair,false);save();renderStats();}
   show('reveal',`Answer: ${fa(cur)}${cur.unit?' '+cur.unit:''}`);};
 $('nextBtn').onclick=next;
 try{const m=localStorage.getItem('dmd-mode');if(m&&(m==='all'||TYPES[m]))mode=m;}catch(e){}
