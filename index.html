@@ -62,6 +62,13 @@ h2{font-size:1.7rem}
 .field input{border:0;background:transparent;color:var(--ink);font:600 1.4rem var(--mono);padding:10px 0;width:100%;min-width:0;outline:none}
 .field .unit{font-family:var(--mono);color:var(--muted);font-size:.9rem;white-space:nowrap}
 .btn{font:600 .95rem var(--body);border-radius:10px;padding:12px 18px;cursor:pointer;border:1px solid var(--magenta);background:var(--magenta);color:#fff}
+.btn{transition:background-color .2s,border-color .2s}
+.btn.ok{background:var(--good);border-color:var(--good);color:#fff}
+.question{transition:opacity .25s}
+.question.done{opacity:.35}
+.spark{position:fixed;width:9px;height:9px;border-radius:50%;pointer-events:none;z-index:50}
+.spark.sq{border-radius:2px}
+@media (prefers-reduced-motion:no-preference){.btn.ok{animation:pop .45s cubic-bezier(.3,1.7,.5,1)}@keyframes pop{0%{transform:scale(1)}40%{transform:scale(1.14)}100%{transform:scale(1)}}}
 .btn.ghost{background:transparent;color:var(--ink);border-color:var(--rule)}
 .timer{font-family:var(--mono);font-size:.9rem;color:var(--muted);font-variant-numeric:tabular-nums;min-width:4ch}
 .result{border-radius:10px;padding:14px 16px;display:flex;flex-direction:column;gap:8px}
@@ -345,13 +352,22 @@ function next(){const k=mode==='all'?pick(MIXED):mode;cur=Object.assign({key:k},
   try{$('answer').focus({preventScroll:true})}catch(e){}}
 function show(kind,verdict){const r=$('result');r.className='result '+kind;
   r.innerHTML=`${verdict?`<div class="verdict">${verdict}</div>`:''}<ol class="steps">${cur.steps.map(s=>`<li>${s}</li>`).join('')}</ol><p class="say">Say it: <em>${cur.say}</em></p>${cur.extra&&kind!=='good'?cur.extra:''}`;r.hidden=false;}
-$('form').addEventListener('submit',e=>{e.preventDefault();if(!cur)return;const v=parseFloat($('answer').value.replace(/,/g,''));if(isNaN(v))return;
+let advancing=false;
+function celebrate(sec){advancing=true;const b=$('checkBtn'),q=$('question');b.classList.add('ok');b.textContent='✓ '+sec+'s';q.classList.add('done');$('result').hidden=true;
+  const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches,css=getComputedStyle(document.documentElement),cols=['--magenta','--good','--ink'].map(v=>css.getPropertyValue(v).trim());
+  if(!reduce){const r=b.getBoundingClientRect(),cx=r.left+r.width/2,cy=r.top+r.height/2;
+    for(let i=0;i<18;i++){const p=document.createElement('i');p.className='spark'+(i%2?' sq':'');p.style.left=cx+'px';p.style.top=cy+'px';p.style.background=cols[i%3];document.body.appendChild(p);
+      const a=Math.PI*2*i/18+Math.random()*.35,d=45+Math.random()*45,x=Math.cos(a)*d,y=Math.sin(a)*d;
+      p.animate([{transform:'translate(-50%,-50%) scale(1) rotate(0deg)',opacity:1},{transform:`translate(calc(-50% + ${x}px),calc(-50% + ${y+18}px)) scale(.35) rotate(${180+Math.random()*180}deg)`,opacity:0}],{duration:650+Math.random()*250,easing:'cubic-bezier(.15,.7,.35,1)'}).onfinish=()=>p.remove();}
+    $('sStreak').animate([{transform:'scale(1)'},{transform:'scale(1.7)',color:cols[1]},{transform:'scale(1)'}],{duration:500,easing:'ease-out'});}
+  setTimeout(()=>{b.classList.remove('ok');b.textContent='Check';q.classList.remove('done');advancing=false;next();},reduce?600:950);}
+$('form').addEventListener('submit',e=>{e.preventDefault();if(!cur||advancing)return;const v=parseFloat($('answer').value.replace(/,/g,''));if(isNaN(v))return;
   const sec=Math.round((Date.now()-start)/1000),ok=Math.abs(v-cur.ans)<=cur.tol,exact=fa(cur);
   if(!answered){answered=true;clearInterval(tick);st.total++;st.time+=sec;if(ok){st.right++;st.streak++;}else st.streak=0;if(cur.pair)mTrack(cur.pair,ok);save();renderStats();}
-  show(ok?'good':'bad',ok?`Good. ${exact}${cur.unit?' '+cur.unit:''} in ${sec}s`:`Answer is ${exact}${cur.unit?' '+cur.unit:''}`);});
-$('revealBtn').onclick=()=>{if(!cur)return;if(!answered){answered=true;clearInterval(tick);st.total++;st.streak=0;st.time+=Math.round((Date.now()-start)/1000);if(cur.pair)mTrack(cur.pair,false);save();renderStats();}
+  if(ok)celebrate(sec);else show('bad',`Answer is ${exact}${cur.unit?' '+cur.unit:''}`);});
+$('revealBtn').onclick=()=>{if(!cur||advancing)return;if(!answered){answered=true;clearInterval(tick);st.total++;st.streak=0;st.time+=Math.round((Date.now()-start)/1000);if(cur.pair)mTrack(cur.pair,false);save();renderStats();}
   show('reveal',`Answer: ${fa(cur)}${cur.unit?' '+cur.unit:''}`);};
-$('nextBtn').onclick=next;
+$('nextBtn').onclick=()=>{if(!advancing)next();};
 try{const m=localStorage.getItem('dmd-mode');if(m&&(m==='all'||TYPES[m]))mode=m;}catch(e){}
 const sel=$('mode');
 sel.innerHTML='<option value="all">All skills, mixed</option>'+Object.keys(TYPES).map(k=>`<option value="${k}">${TYPES[k].label}</option>`).join('');
