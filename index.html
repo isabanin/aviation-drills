@@ -80,6 +80,9 @@ h2{font-size:1.7rem}
 .seg{display:flex;border:1px solid var(--rule);border-radius:10px;background:var(--paper);padding:3px;gap:3px;max-width:340px}
 .seg button{flex:1;font:500 .95rem var(--body);color:var(--muted);background:transparent;border:0;border-radius:7px;padding:8px 6px;cursor:pointer}
 .seg button[aria-checked="true"]{background:var(--magenta);color:#fff;font-weight:600}
+.seg.locked button{cursor:default}
+.seg.locked button[aria-checked="false"]{opacity:.45}
+.lock{text-transform:none;letter-spacing:0;font-family:var(--body);font-size:.8rem}
 .seg button:focus-visible{outline:2px solid var(--magenta);outline-offset:1px}
 .mode select:focus-visible{outline:2px solid var(--magenta);outline-offset:2px}
 .btn:focus-visible,input:focus-visible{outline:2px solid var(--magenta);outline-offset:2px}
@@ -398,7 +401,7 @@ let ses=load('dmd-session');if(!ses||!Array.isArray(ses.res)||!(ses.n>0)||ses.re
 const saveSes=()=>store('dmd-session',ses);
 const PER_Q=15; // seconds per question used for the time estimate
 function view(v){$('startView').hidden=v!=='start';$('playView').hidden=v!=='play';$('sumView').hidden=v!=='sum';
-  const on=v==='play';$('stats').hidden=!on;$('stopBtn').hidden=!on;$('prog').hidden=!on;}
+  const on=v==='play';$('stats').hidden=!on;$('stopBtn').hidden=!on;$('prog').hidden=!on;renderLvl();}
 function renderStats(){if(!ses)return;const r=ses.res,right=r.filter(x=>x.ok).length,t=r.reduce((a,x)=>a+x.sec,0);
   $('sQ').textContent=Math.min(r.length+(answered?0:1),ses.n);$('sN').textContent=ses.n;$('sRight').textContent=right+'/'+r.length;
   $('sAvg').textContent=r.length?Math.round(t/r.length)+'s':'–';$('progBar').style.width=(r.length/ses.n*100)+'%';}
@@ -470,12 +473,13 @@ sel.value=mode;
 sel.addEventListener('change',()=>{mode=sel.value;try{localStorage.setItem('dmd-mode',mode)}catch(e){};renderLvl();if(ses&&!advancing){if(!answered&&cur){next();}}});
 try{const l=localStorage.getItem('dmd-level');if(LEVELS.includes(l))lvl=l;const m=localStorage.getItem('dmd-mlevel');if(m==='hard'||m==='all')mlvl=m;}catch(e){}
 const LVL_OPTS={std:[['easy','Easy'],['medium','Medium'],['hard','Hard']],mult:[['hard','Hard'],['all','All']]};
-function renderLvl(){const m=mode==='mult',cur=m?mlvl:lvl;$('lvlLbl').textContent=m?'Set':'Difficulty';
-  $('lvl').innerHTML=LVL_OPTS[m?'mult':'std'].map(([v,t])=>`<button type="button" role="radio" id="lvl-${v}" data-l="${v}" aria-checked="${v===cur}">${t}</button>`).join('');}
-$('lvl').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;const v=b.dataset.l;
+function renderLvl(){const m=mode==='mult',cur=m?mlvl:lvl,lock=!!ses;$('lvlLbl').innerHTML=(m?'Set':'Difficulty')+(lock?' <span class="lock">· locked for this session</span>':'');
+  $('lvl').classList.toggle('locked',lock);
+  $('lvl').innerHTML=LVL_OPTS[m?'mult':'std'].map(([v,t])=>`<button type="button" role="radio" id="lvl-${v}" data-l="${v}" aria-checked="${v===cur}"${lock?' disabled':''}>${t}</button>`).join('');}
+$('lvl').addEventListener('click',e=>{const b=e.target.closest('button');if(!b||ses)return;const v=b.dataset.l;
   if(mode==='mult'){if(mlvl===v)return;mlvl=v;try{localStorage.setItem('dmd-mlevel',v)}catch(e){}}
   else{if(lvl===v)return;lvl=v;try{localStorage.setItem('dmd-level',v)}catch(e){}}
-  renderLvl();if(ses&&!advancing&&!answered)next();});
+  renderLvl();});
 renderLvl();renderCount();if(ses){view('play');next();}else view('start');
 })();
 </script>
