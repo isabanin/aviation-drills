@@ -42,7 +42,36 @@ h2{font-size:1.7rem}
 .drill{background:var(--panel);border:2px solid var(--magenta);border-radius:14px;padding:20px;display:flex;flex-direction:column;gap:16px}
 .drill-top{display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap}
 .stats{display:flex;gap:16px;font-family:var(--mono);font-size:.82rem;color:var(--muted);font-variant-numeric:tabular-nums}
-.stats strong{color:var(--ink);font-weight:600}
+.stats strong{color:var(--ink);font-weight:600;display:inline-block}
+.top-right{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.btn.sm{padding:6px 12px;font-size:.85rem}
+.prog{height:4px;border-radius:2px;background:var(--rule);overflow:hidden;margin-top:-6px}
+.prog i{display:block;height:100%;width:0;background:var(--magenta);transition:width .3s ease}
+.play{display:flex;flex-direction:column;gap:16px}
+.start{display:flex;flex-direction:column;gap:14px;align-items:flex-start;border-top:1px solid var(--rule);padding-top:16px}
+.start h3,.summary h3{font-family:var(--display);font-size:1.35rem;margin:0}
+.count-row{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.lbl{font-family:var(--mono);font-size:.74rem;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.stepper{display:flex;align-items:stretch;border:1px solid var(--rule);border-radius:10px;background:var(--paper);overflow:hidden}
+.stepper button{width:44px;border:0;background:transparent;color:var(--ink);font:600 1.3rem var(--body);cursor:pointer}
+.stepper button:focus-visible,.stepper input:focus-visible{outline:2px solid var(--magenta);outline-offset:-2px}
+.stepper input{width:3.5ch;border:0;background:transparent;color:var(--ink);font:600 1.3rem var(--mono);text-align:center;padding:8px 0;font-variant-numeric:tabular-nums}
+.est{font-size:.88rem;color:var(--muted)}
+.summary{display:flex;flex-direction:column;gap:18px;align-items:flex-start;border-top:1px solid var(--rule);padding-top:16px}
+.score{display:flex;align-items:center;gap:18px;flex-wrap:wrap}
+.pct{font-family:var(--display);font-weight:700;font-size:4.2rem;line-height:1;font-variant-numeric:tabular-nums}
+.pct small{font-size:.45em;margin-left:2px}
+.score.hi .pct{color:var(--good)} .score.mid .pct{color:var(--magenta)} .score.lo .pct{color:var(--bad)}
+.vword{font-weight:600;font-size:1.15rem}
+.smeta{color:var(--muted);font-size:.9rem;line-height:1.5}
+.bk{border-collapse:collapse;width:100%;max-width:440px;font-size:.92rem;font-variant-numeric:tabular-nums}
+.bk th{font-family:var(--mono);font-size:.7rem;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:500;text-align:left;padding:0 8px 6px 0}
+.bk td{padding:7px 8px 7px 0;border-top:1px solid var(--rule)}
+.bk td:not(:first-child),.bk th:not(:first-child){text-align:right;font-family:var(--mono)}
+.misses{display:flex;flex-direction:column;gap:8px;width:100%}
+.misses ol{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:8px;font-size:.92rem}
+.misses li span{display:block}
+.misses li b{font-family:var(--mono);font-size:.85rem;color:var(--bad);font-weight:600}
 .mode{display:flex;flex-direction:column;gap:6px}
 .controls{display:flex;flex-wrap:wrap;gap:14px 16px;align-items:flex-end}
 .controls .mode{flex:1 1 200px;min-width:0}
@@ -105,12 +134,16 @@ h2{font-size:1.7rem}
   <section class="drill" aria-label="Practice drill">
     <div class="drill-top">
       <h2>Drill</h2>
-      <div class="stats" aria-live="polite">
-        <span>Right <strong id="sRight">0</strong>/<strong id="sTotal">0</strong></span>
-        <span>Streak <strong id="sStreak">0</strong></span>
-        <span>Avg <strong id="sAvg">–</strong></span>
+      <div class="top-right">
+        <div class="stats" id="stats" aria-live="polite" hidden>
+          <span>Q <strong id="sQ">1</strong>/<strong id="sN">20</strong></span>
+          <span>Right <strong id="sRight">0/0</strong></span>
+          <span>Avg <strong id="sAvg">–</strong></span>
+        </div>
+        <button class="btn ghost sm" type="button" id="stopBtn" hidden>End</button>
       </div>
     </div>
+    <div class="prog" id="prog" hidden><i id="progBar"></i></div>
     <div class="controls">
       <div class="mode">
         <label for="mode">Practice</label>
@@ -122,6 +155,20 @@ h2{font-size:1.7rem}
         </div>
       </div>
     </div>
+    <div class="start" id="startView">
+      <h3>New session</h3>
+      <div class="count-row">
+        <span class="lbl" id="countLbl">Questions</span>
+        <div class="stepper" role="group" aria-labelledby="countLbl">
+          <button type="button" id="cMinus" aria-label="5 fewer questions">−</button>
+          <input id="count" inputmode="numeric" value="20" aria-label="Number of questions">
+          <button type="button" id="cPlus" aria-label="5 more questions">+</button>
+        </div>
+        <span class="est" id="est">about 5 min</span>
+      </div>
+      <button class="btn" type="button" id="startBtn">Start session</button>
+    </div>
+    <div class="play" id="playView" hidden>
     <div>
       <div class="qtype" id="qtype"></div>
       <p class="question" id="question"></p>
@@ -134,6 +181,8 @@ h2{font-size:1.7rem}
       <span class="timer" id="timer">0s</span>
     </form>
     <div id="result" hidden></div>
+    </div>
+    <div class="summary" id="sumView" hidden aria-live="polite"></div>
   </section>
 </div>
 
@@ -339,19 +388,35 @@ function mTrack(k,ok){const i=miss.indexOf(k);if(ok){if(i>=0)miss.splice(i,1);}e
 const MIXED=Object.keys(TYPES);
 const fa=c=>{const n=c.ans;if(c.unit==='nm/min')return(+n.toFixed(2)).toString();if(Math.abs(n)>=1000)return fmt(n);return(+n.toFixed(1)).toString();};
 
-let mode='all',lvl='hard',mlvl='hard',cur=null,start=0,tick=null,answered=false;
-let st={right:0,total:0,streak:0,time:0};
-try{const s=JSON.parse(localStorage.getItem('dmd-stats')||'null');if(s)st=Object.assign(st,s);}catch(e){}
-const save=()=>{try{localStorage.setItem('dmd-stats',JSON.stringify(st));}catch(e){}};
+let mode='all',lvl='hard',mlvl='hard',cur=null,start=0,tick=null,answered=false,hiddenAt=0;
 const $=id=>document.getElementById(id);
+const store=(k,v)=>{try{v===null?localStorage.removeItem(k):localStorage.setItem(k,JSON.stringify(v))}catch(e){}};
+const load=k=>{try{return JSON.parse(localStorage.getItem(k)||'null')}catch(e){return null}};
 
-function renderStats(){$('sRight').textContent=st.right;$('sTotal').textContent=st.total;$('sStreak').textContent=st.streak;$('sAvg').textContent=st.total?Math.round(st.time/st.total)+'s':'–';}
-function next(){const k=mode==='all'?pick(MIXED):mode;cur=Object.assign({key:k},k==='mult'?TYPES.mult.gen(mode==='mult'?mlvl:(lvl==='easy'?'all':'hard')):lvl==='hard'?TYPES[k].gen():SIMPLE[k](lvl==='easy'));answered=false;
-  $('qtype').textContent=TYPES[k].label;$('question').innerHTML=cur.q;$('unit').textContent=cur.unit;$('answer').value='';$('result').hidden=true;
-  start=Date.now();clearInterval(tick);tick=setInterval(()=>{$('timer').textContent=Math.round((Date.now()-start)/1000)+'s'},500);$('timer').textContent='0s';
+// Session: {n: target count, res: [{k,ok,sec,q,a,skip}]}
+let ses=load('dmd-session');if(!ses||!Array.isArray(ses.res)||!(ses.n>0)||ses.res.length>=ses.n)ses=null;
+const saveSes=()=>store('dmd-session',ses);
+const PER_Q=15; // seconds per question used for the time estimate
+function view(v){$('startView').hidden=v!=='start';$('playView').hidden=v!=='play';$('sumView').hidden=v!=='sum';
+  const on=v==='play';$('stats').hidden=!on;$('stopBtn').hidden=!on;$('prog').hidden=!on;}
+function renderStats(){if(!ses)return;const r=ses.res,right=r.filter(x=>x.ok).length,t=r.reduce((a,x)=>a+x.sec,0);
+  $('sQ').textContent=Math.min(r.length+(answered?0:1),ses.n);$('sN').textContent=ses.n;$('sRight').textContent=right+'/'+r.length;
+  $('sAvg').textContent=r.length?Math.round(t/r.length)+'s':'–';$('progBar').style.width=(r.length/ses.n*100)+'%';}
+const elapsed=()=>Math.min(300,Math.round((Date.now()-start)/1000));
+document.addEventListener('visibilitychange',()=>{if(document.hidden)hiddenAt=Date.now();else if(hiddenAt){start+=Date.now()-hiddenAt;hiddenAt=0;}});
+function record(ok,skip){if(!ses||answered)return;answered=true;clearInterval(tick);const sec=elapsed();
+  ses.res.push({k:cur.key,ok,sec,q:$('question').textContent,a:fa(cur)+(cur.unit?' '+cur.unit:''),skip:!!skip});saveSes();
+  if(cur.pair)mTrack(cur.pair,ok);renderStats();if(ses.res.length>=ses.n)$('nextBtn').textContent='See score';return sec;}
+const isDone=()=>ses&&ses.res.length>=ses.n;
+
+function next(){if(isDone())return finish();
+  const k=mode==='all'?pick(MIXED):mode;cur=Object.assign({key:k},k==='mult'?TYPES.mult.gen(mode==='mult'?mlvl:(lvl==='easy'?'all':'hard')):lvl==='hard'?TYPES[k].gen():SIMPLE[k](lvl==='easy'));answered=false;
+  $('qtype').textContent=TYPES[k].label;$('question').innerHTML=cur.q;$('unit').textContent=cur.unit;$('answer').value='';$('result').hidden=true;$('nextBtn').textContent='Next';
+  start=Date.now();clearInterval(tick);tick=setInterval(()=>{$('timer').textContent=elapsed()+'s'},500);$('timer').textContent='0s';renderStats();
   try{$('answer').focus({preventScroll:true})}catch(e){}}
 function show(kind,verdict){const r=$('result');r.className='result '+kind;
   r.innerHTML=`${verdict?`<div class="verdict">${verdict}</div>`:''}<ol class="steps">${cur.steps.map(s=>`<li>${s}</li>`).join('')}</ol><p class="say">Say it: <em>${cur.say}</em></p>${cur.extra&&kind!=='good'?cur.extra:''}`;r.hidden=false;}
+
 let advancing=false;
 function celebrate(sec){advancing=true;const b=$('checkBtn'),q=$('question');b.classList.add('ok');b.textContent='✓ '+sec+'s';q.classList.add('done');$('result').hidden=true;
   const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches,css=getComputedStyle(document.documentElement),cols=['--magenta','--good','--ink'].map(v=>css.getPropertyValue(v).trim());
@@ -359,27 +424,50 @@ function celebrate(sec){advancing=true;const b=$('checkBtn'),q=$('question');b.c
     for(let i=0;i<18;i++){const p=document.createElement('i');p.className='spark'+(i%2?' sq':'');p.style.left=cx+'px';p.style.top=cy+'px';p.style.background=cols[i%3];document.body.appendChild(p);
       const a=Math.PI*2*i/18+Math.random()*.35,d=45+Math.random()*45,x=Math.cos(a)*d,y=Math.sin(a)*d;
       p.animate([{transform:'translate(-50%,-50%) scale(1) rotate(0deg)',opacity:1},{transform:`translate(calc(-50% + ${x}px),calc(-50% + ${y+18}px)) scale(.35) rotate(${180+Math.random()*180}deg)`,opacity:0}],{duration:650+Math.random()*250,easing:'cubic-bezier(.15,.7,.35,1)'}).onfinish=()=>p.remove();}
-    $('sStreak').animate([{transform:'scale(1)'},{transform:'scale(1.7)',color:cols[1]},{transform:'scale(1)'}],{duration:500,easing:'ease-out'});}
+    $('sRight').animate([{transform:'scale(1)'},{transform:'scale(1.5)',color:cols[1]},{transform:'scale(1)'}],{duration:500,easing:'ease-out'});}
   setTimeout(()=>{b.classList.remove('ok');b.textContent='Check';q.classList.remove('done');advancing=false;next();},reduce?600:950);}
-$('form').addEventListener('submit',e=>{e.preventDefault();if(!cur||advancing)return;const v=parseFloat($('answer').value.replace(/,/g,''));if(isNaN(v))return;
-  const sec=Math.round((Date.now()-start)/1000),ok=Math.abs(v-cur.ans)<=cur.tol,exact=fa(cur);
-  if(!answered){answered=true;clearInterval(tick);st.total++;st.time+=sec;if(ok){st.right++;st.streak++;}else st.streak=0;if(cur.pair)mTrack(cur.pair,ok);save();renderStats();}
-  if(ok)celebrate(sec);else show('bad',`Answer is ${exact}${cur.unit?' '+cur.unit:''}`);});
-$('revealBtn').onclick=()=>{if(!cur||advancing)return;if(!answered){answered=true;clearInterval(tick);st.total++;st.streak=0;st.time+=Math.round((Date.now()-start)/1000);if(cur.pair)mTrack(cur.pair,false);save();renderStats();}
-  show('reveal',`Answer: ${fa(cur)}${cur.unit?' '+cur.unit:''}`);};
-$('nextBtn').onclick=()=>{if(!advancing)next();};
+
+$('form').addEventListener('submit',e=>{e.preventDefault();if(!cur||advancing||!ses)return;const v=parseFloat($('answer').value.replace(/,/g,''));if(isNaN(v))return;
+  const ok=Math.abs(v-cur.ans)<=cur.tol,sec=answered?elapsed():record(ok);
+  if(ok)celebrate(sec);else show('bad',`Answer is ${fa(cur)}${cur.unit?' '+cur.unit:''}`);});
+$('revealBtn').onclick=()=>{if(!cur||advancing||!ses)return;record(false);show('reveal',`Answer: ${fa(cur)}${cur.unit?' '+cur.unit:''}`);};
+const goNext=()=>{if(advancing||!ses)return;if(!answered)record(false,true);next();};
+$('nextBtn').onclick=goNext;
 // Keep the answer field focused when tapping Check or Next, so the phone keyboard stays up between questions
 function keepFocus(btn,act){const nf=e=>{if(document.activeElement===$('answer'))e.preventDefault();};
   btn.addEventListener('mousedown',nf);
   btn.addEventListener('touchstart',e=>{if(document.activeElement===$('answer')){e.preventDefault();btn._kf=true;}},{passive:false});
   btn.addEventListener('touchend',e=>{if(btn._kf){btn._kf=false;e.preventDefault();act();}},{passive:false});}
 keepFocus($('checkBtn'),()=>{const f=$('form');f.requestSubmit?f.requestSubmit():f.dispatchEvent(new Event('submit',{cancelable:true}));});
-keepFocus($('nextBtn'),()=>{if(!advancing)next();});
+keepFocus($('nextBtn'),goNext);
+
+// Start, stop, score
+const clampN=n=>Math.max(5,Math.min(100,Math.round(n)||20));
+let count=clampN(load('dmd-count')||20);
+function renderCount(){$('count').value=count;const m=Math.round(count*PER_Q/60);$('est').textContent=`about ${m<1?'1':m} min`;}
+$('cMinus').onclick=()=>{count=clampN(count-5);store('dmd-count',count);renderCount();};
+$('cPlus').onclick=()=>{count=clampN(count+5);store('dmd-count',count);renderCount();};
+$('count').addEventListener('change',()=>{count=clampN(parseFloat($('count').value));store('dmd-count',count);renderCount();});
+$('startBtn').onclick=()=>{count=clampN(parseFloat($('count').value));store('dmd-count',count);ses={n:count,res:[]};saveSes();view('play');next();};
+$('stopBtn').onclick=()=>{if(!ses||advancing)return;if(!ses.res.length){ses=null;store('dmd-session',null);clearInterval(tick);view('start');return;}finish();};
+const mmss=s=>Math.floor(s/60)+':'+String(s%60).padStart(2,'0');
+const esc=t=>t.replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function finish(){clearInterval(tick);const r=ses.res,n=r.length,right=r.filter(x=>x.ok).length,t=r.reduce((a,x)=>a+x.sec,0),pct=n?Math.round(right/n*100):0;
+  const early=n<ses.n,verdict=pct>=90?'Interview ready':pct>=75?'Solid':pct>=50?'Getting there':'Keep drilling';
+  const by={};r.forEach(x=>{const b=by[x.k]=by[x.k]||{n:0,ok:0,t:0};b.n++;b.t+=x.sec;if(x.ok)b.ok++;});
+  const rows=Object.keys(by).length>1?`<table class="bk"><thead><tr><th>Skill</th><th>Right</th><th>Avg</th></tr></thead><tbody>${Object.entries(by).sort((a,b)=>a[1].ok/a[1].n-b[1].ok/b[1].n).map(([k,b])=>`<tr><td>${TYPES[k].label}</td><td>${b.ok}/${b.n}</td><td>${Math.round(b.t/b.n)}s</td></tr>`).join('')}</tbody></table>`:'';
+  const miss=r.filter(x=>!x.ok);
+  $('sumView').innerHTML=`<div class="score ${pct>=75?'hi':pct>=50?'mid':'lo'}"><div class="pct">${pct}<small>%</small></div><div class="sline"><div class="vword">${verdict}</div><div class="smeta">${right} of ${n} right${early?` · ended early (${n} of ${ses.n})`:''}<br>Avg ${n?Math.round(t/n):0}s per question · ${mmss(t)} total</div></div></div>
+    ${rows}${miss.length?`<div class="misses"><div class="lbl">Missed</div><ol>${miss.map(x=>`<li><span>${esc(x.q)}</span><b>${x.skip?'Skipped · ':''}${esc(x.a)}</b></li>`).join('')}</ol></div>`:''}
+    <button class="btn" type="button" id="againBtn">New session</button>`;
+  ses=null;store('dmd-session',null);try{$('answer').blur()}catch(e){}
+  view('sum');$('againBtn').onclick=()=>{view('start');renderCount();};
+  if(pct>=90&&!matchMedia('(prefers-reduced-motion: reduce)').matches){const b=$('sumView').querySelector('.pct');b.animate([{transform:'scale(.6)',opacity:0},{transform:'scale(1.08)',opacity:1},{transform:'scale(1)'}],{duration:600,easing:'cubic-bezier(.3,1.6,.5,1)'});}}
 try{const m=localStorage.getItem('dmd-mode');if(m&&(m==='all'||TYPES[m]))mode=m;}catch(e){}
 const sel=$('mode');
 sel.innerHTML='<option value="all">All skills, mixed</option>'+Object.keys(TYPES).map(k=>`<option value="${k}">${TYPES[k].label}</option>`).join('');
 sel.value=mode;
-sel.addEventListener('change',()=>{mode=sel.value;try{localStorage.setItem('dmd-mode',mode)}catch(e){};renderLvl();next();});
+sel.addEventListener('change',()=>{mode=sel.value;try{localStorage.setItem('dmd-mode',mode)}catch(e){};renderLvl();if(ses&&!advancing){if(!answered&&cur){next();}}});
 try{const l=localStorage.getItem('dmd-level');if(LEVELS.includes(l))lvl=l;const m=localStorage.getItem('dmd-mlevel');if(m==='hard'||m==='all')mlvl=m;}catch(e){}
 const LVL_OPTS={std:[['easy','Easy'],['medium','Medium'],['hard','Hard']],mult:[['hard','Hard'],['all','All']]};
 function renderLvl(){const m=mode==='mult',cur=m?mlvl:lvl;$('lvlLbl').textContent=m?'Set':'Difficulty';
@@ -387,8 +475,8 @@ function renderLvl(){const m=mode==='mult',cur=m?mlvl:lvl;$('lvlLbl').textConten
 $('lvl').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;const v=b.dataset.l;
   if(mode==='mult'){if(mlvl===v)return;mlvl=v;try{localStorage.setItem('dmd-mlevel',v)}catch(e){}}
   else{if(lvl===v)return;lvl=v;try{localStorage.setItem('dmd-level',v)}catch(e){}}
-  renderLvl();next();});
-renderLvl();renderStats();next();
+  renderLvl();if(ses&&!advancing&&!answered)next();});
+renderLvl();renderCount();if(ses){view('play');next();}else view('start');
 })();
 </script>
 
