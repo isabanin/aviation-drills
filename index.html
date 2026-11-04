@@ -368,6 +368,13 @@ $('form').addEventListener('submit',e=>{e.preventDefault();if(!cur||advancing)re
 $('revealBtn').onclick=()=>{if(!cur||advancing)return;if(!answered){answered=true;clearInterval(tick);st.total++;st.streak=0;st.time+=Math.round((Date.now()-start)/1000);if(cur.pair)mTrack(cur.pair,false);save();renderStats();}
   show('reveal',`Answer: ${fa(cur)}${cur.unit?' '+cur.unit:''}`);};
 $('nextBtn').onclick=()=>{if(!advancing)next();};
+// Keep the answer field focused when tapping Check or Next, so the phone keyboard stays up between questions
+function keepFocus(btn,act){const nf=e=>{if(document.activeElement===$('answer'))e.preventDefault();};
+  btn.addEventListener('mousedown',nf);
+  btn.addEventListener('touchstart',e=>{if(document.activeElement===$('answer')){e.preventDefault();btn._kf=true;}},{passive:false});
+  btn.addEventListener('touchend',e=>{if(btn._kf){btn._kf=false;e.preventDefault();act();}},{passive:false});}
+keepFocus($('checkBtn'),()=>{const f=$('form');f.requestSubmit?f.requestSubmit():f.dispatchEvent(new Event('submit',{cancelable:true}));});
+keepFocus($('nextBtn'),()=>{if(!advancing)next();});
 try{const m=localStorage.getItem('dmd-mode');if(m&&(m==='all'||TYPES[m]))mode=m;}catch(e){}
 const sel=$('mode');
 sel.innerHTML='<option value="all">All skills, mixed</option>'+Object.keys(TYPES).map(k=>`<option value="${k}">${TYPES[k].label}</option>`).join('');
