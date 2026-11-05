@@ -46,6 +46,7 @@ h2{font-size:1.7rem}
 .top-right{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
 .btn.sm{padding:6px 12px;font-size:.85rem}
 .prog{height:4px;border-radius:2px;background:var(--rule);overflow:hidden;margin-top:-6px}
+.ses-info{font-family:var(--mono);font-size:.74rem;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-top:-6px}
 .prog i{display:block;height:100%;width:0;background:var(--magenta);transition:width .3s ease}
 .play{display:flex;flex-direction:column;gap:16px}
 .start{display:flex;flex-direction:column;gap:14px;align-items:flex-start;border-top:1px solid var(--rule);padding-top:16px}
@@ -147,6 +148,7 @@ h2{font-size:1.7rem}
       </div>
     </div>
     <div class="prog" id="prog" hidden><i id="progBar"></i></div>
+    <div class="ses-info" id="sesInfo" hidden></div>
     <div class="controls" id="controls">
       <div class="mode">
         <label for="mode">Practice</label>
@@ -410,7 +412,7 @@ let ses=load('dmd-session');if(!ses||!Array.isArray(ses.res)||!(ses.n>0)||ses.re
 const saveSes=()=>store('dmd-session',ses);
 const PER_Q=15; // seconds per question used for the time estimate
 function view(v){$('startView').hidden=v!=='start';$('playView').hidden=v!=='play';$('sumView').hidden=v!=='sum';
-  const on=v==='play';$('stats').hidden=!on;$('stopBtn').hidden=!on;$('prog').hidden=!on;$('controls').hidden=v==='sum';renderLvl();}
+  const on=v==='play';$('stats').hidden=!on;$('stopBtn').hidden=!on;$('prog').hidden=!on;$('controls').hidden=v!=='start';$('sesInfo').hidden=!on;if(on)$('sesInfo').textContent=(mode==='all'?'All skills, mixed':TYPES[mode].label)+' · '+(mode==='mult'?(mlvl==='all'?'All':'Hard')+' set':lvl[0].toUpperCase()+lvl.slice(1));renderLvl();}
 function renderStats(){if(!ses)return;const r=ses.res,right=r.filter(x=>x.ok).length,t=r.reduce((a,x)=>a+x.sec,0);
   $('sQ').textContent=Math.min(r.length+(answered?0:1),ses.n);$('sN').textContent=ses.n;$('sRight').textContent=right+'/'+r.length;
   $('sAvg').textContent=r.length?Math.round(t/r.length)+'s':'–';$('progBar').style.width=(r.length/ses.n*100)+'%';}
