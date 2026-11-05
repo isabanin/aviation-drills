@@ -327,10 +327,15 @@ const TYPES={
     return{q:pick([`Dumping fuel at ${N(fmt(rate)+' lb/min')}. How long to dump ${N(fmt(amt)+' lb')}?`,`How long to jettison ${N(fmt(amt)+' lb')} at ${N(fmt(rate)+' pounds a minute')}?`]),unit:'min',ans:min,tol:0.5,
       steps:[`${fmt(amt)} ÷ ${fmt(rate)} = ${min} min`],say:'Drop common zeros first, then divide.'};}},
   mult:{label:'Times table',gen(set){
-    const [a,b]=mPick(set),p=a*b;
+    const [a,b]=mPick(set),p=a*b,pair=Math.min(a,b)+'x'+Math.max(a,b);
+    if(set!=='all'&&Math.random()<.3){ // reverse: find the missing factor
+      const left=Math.random()<.5,known=left?b:a,miss=left?a:b;
+      return{q:`<span class="n">${left?'?':a} × ${left?b:'?'} = ${p}</span>`,unit:'',ans:miss,tol:0,
+        steps:[`${p} ÷ ${known} = ${miss}`,`Check: ${a} × ${b} = ${p}`,mHint(a,b)],extra:mTable(a,b),pair,
+        say:`Ask yourself which ${known}× fact gives ${p}.`};}
     return{q:`<span class="n">${a} × ${b}</span> = ?`,unit:'',ans:p,tol:0,
       steps:[`${a} × ${b} = ${p}`,mHint(a,b)],extra:mTable(a,b),
-      pair:Math.min(a,b)+'x'+Math.max(a,b),say:'Answer from memory. Target: under 3 seconds, no counting.'};}}
+      pair,say:'Answer from memory. Target: under 3 seconds, no counting.'};}}
 };
 function mCat(a,b){const lo=Math.min(a,b),hi=Math.max(a,b);
   if(lo===1||hi===10)return'rule';if(lo===2||lo===5||hi===5)return'pat';if(lo===hi)return'sq';return'core';}
