@@ -199,7 +199,7 @@ const fl=n=>n>=18000?'FL'+(n/100):fmt(n)+' ft';
 const N=x=>`<span class="n">${x}</span>`;
 const FIX=['LENDY','MERIT','PARCH','CAMRN','BRAND','SPUDS','KORRY','ROBER','JAIKE','BETTE','DYLIN','HAARP','WAVEY','ZIGGI','PROUD'];
 const r1=x=>+x.toFixed(1);
-const GS30=[180,210,240,270,300,330,360,390,420,450,480];
+const GS30=[180,210,240,270,300,330,360,390,420,450,480],GS60=GS30.filter(g=>g%60===0); // divide only by whole nm/min
 const minsFor=(gs,list)=>gs%60?list.filter(m=>m%2===0):list;
 const VSR=[1000,1500,2000,2500,3000];
 const DUMP=[500,1000,1500,2000,2500,3000],DMIN=[2,3,4,5,6,7,8,9,10,11,12,15,20];
@@ -292,7 +292,7 @@ const TYPES={
     if(v===2){const vs=pick([1000,1500,2000,2500,3000]),m=pick([3,4,5,6,8,10]),to=R(3,12)*1000,from=to+vs*m;
       return{q:pick([`Descending at ${N(fmt(vs)+' fpm')} from ${N(fl(from))} to ${N(fl(to))}. How many minutes?`,`How long to get from ${N(fl(from))} down to ${N(fl(to))} at ${N(fmt(vs)+' fpm')}?`]),
         unit:'min',ans:m,tol:0.5,steps:[`${fmt(from)} − ${fmt(to)} = ${fmt(from-to)} ft`,`${fmt(from-to)} ÷ ${fmt(vs)} = ${m} min`],say:'Feet to lose divided by the rate.'};}
-    const gs=pick(GS30.slice(2)),min=pick(minsFor(gs,[2,3,4,5,6])),npm=gs/60,nm=npm*min,vs=pick(VSR),alt=vs*min;
+    const gs=pick(GS60.slice(1)),min=pick([2,3,4,5,6]),npm=gs/60,nm=npm*min,vs=pick(VSR),alt=vs*min;
     if(v===3){const to=R(4,10)*1000,from=to+alt;
       return{q:`ATC: "Cross ${fix} at ${N(fl(to))}." You're at ${N(fl(from))}, ${N(nm+' nm')} from ${fix}, groundspeed ${N(gs+' kt')}. What descent rate do you need?`,unit:'fpm',ans:vs,tol:100,
         steps:[`${fmt(from)} − ${fmt(to)} = ${fmt(alt)} ft`,`${gs} ÷ 60 = ${npm} nm/min → ${nm} ÷ ${npm} = ${min} min`,`${fmt(alt)} ÷ ${min} = ${fmt(vs)} fpm`],say:'Altitude to lose, time to the fix, then divide.'};}
@@ -300,11 +300,11 @@ const TYPES={
       steps:[`${gs} ÷ 60 = ${npm} nm/min`,`${nm} ÷ ${npm} = ${min} min`,`${fmt(alt)} ÷ ${min} = ${fmt(vs)} fpm`],say:'Turn distance into minutes, then divide the altitude.'};}},
 
   wind:{label:'Time with wind',gen(){
-    const head=Math.random()<.6,w=R(1,8)*10,gs=pick(GS30.filter(g=>head?g+w<=540:g-w>=150)),tas=head?gs+w:gs-w,wn=`${w} kt ${head?'headwind':'tailwind'}`;
-    if(Math.random()<.35){const m=pick(minsFor(gs,[2,3,4,5,6,8,10,12])),d=gs/60*m;
+    const dv=Math.random()<.35,head=Math.random()<.6,w=R(1,8)*10,gs=pick((dv?GS30:GS60).filter(g=>head?g+w<=540:g-w>=150)),tas=head?gs+w:gs-w,wn=`${w} kt ${head?'headwind':'tailwind'}`;
+    if(dv){const m=pick(minsFor(gs,[2,3,4,5,6,8,10,12])),d=gs/60*m;
       return{q:pick([`TAS ${N(tas+' kt')}, ${N(wn)}. How far do you travel in ${N(m+' minutes')}?`,`At ${N(tas+' TAS')} into a ${N(wn)}, how many miles in ${N(m+' min')}?`].map(s=>head||!s.includes('into')?s:s.replace('into a','with a'))),
         unit:'nm',ans:d,tol:0.5,steps:[`GS = ${tas} ${head?'−':'+'} ${w} = ${gs} kt`,`${gs} ÷ 60 = ${gs/60} nm/min`,`${gs/60} × ${m} = ${d} nm`],say:'Groundspeed, nm per minute, times the minutes.'};}
-    const min=pick(minsFor(gs,[4,5,6,8,10,12,15,20,30])),dist=gs/60*min;
+    const min=pick([4,5,6,8,10,12,15,20,30]),dist=gs/60*min;
     return{q:pick([`Travel ${N(dist+' nm')} at ${N(tas+' TAS')} with a ${N(wn)}. How many minutes?`,`How long to travel ${N(dist+' nm')} with ${N(tas+' TAS')} and a ${N(wn)}?`,`${N(dist+' nm')} to the fix. True airspeed ${N(tas+' kt')}, ${N(wn)}. Time en route?`]),
       unit:'min',ans:min,tol:0.5,steps:[`GS = ${tas} ${head?'−':'+'} ${w} = ${gs} kt`,`${gs} ÷ 60 = ${gs/60} nm/min`,`${dist} ÷ ${gs/60} = ${min} min`],say:'Groundspeed first, then distance over groundspeed.'};}},
 
@@ -363,13 +363,13 @@ const SIMPLE={
       steps:[`${gs} × 5 = ${fmt(vs)} fpm`,`Check: ${gs} ÷ 2 = ${gs/2}, add a zero → ${fmt(vs)}`],say:'Groundspeed times five.'};},
   vsreq(e){let gs,m,alt;
     if(e){gs=pick([240,300,360,420,480]);m=pick([2,4,5]);alt=pick([1000,1500,2000,2500])*m;}
-    else{gs=pick([240,270,300,330,360,390,420]);m=pick(minsFor(gs,[2,3,4,5,6]));alt=pick(VSR)*m;}
+    else{gs=pick([240,300,360,420,480]);m=pick([2,3,4,5,6]);alt=pick(VSR)*m;}
     const npm=gs/60,nm=npm*m,vs=alt/m;
     return{q:`Lose ${N(fmt(alt)+' ft')} in ${N(nm+' nm')} at ${N(gs+' kt')} groundspeed. What vertical speed?`,unit:'fpm',ans:vs,tol:e?0:Math.max(100,vs*0.05),
       steps:[`${gs} ÷ 60 = ${npm} nm/min`,`${nm} ÷ ${npm} = ${m} min`,`${fmt(alt)} ÷ ${m} ≈ ${fmt(vs)} fpm`],say:'Turn distance into minutes, then divide the altitude.'};},
   wind(e){let tas,w,head=Math.random()<.6;
     if(e){tas=pick([300,360,420,480]);w=pick([60,120]);if(!head&&tas+w>540)head=true;}
-    else{w=R(1,8)*10;do{tas=R(18,48)*10}while((tas+(head?-w:w))%30);}
+    else{w=R(1,8)*10;do{tas=R(18,48)*10}while((tas+(head?-w:w))%60);}
     const gs=head?tas-w:tas+w,npm=gs/60,m=e?pick([5,10,15,20]):(gs%60?pick([4,6,8,10,12,20]):R(3,20)),dist=npm*m;
     return{q:`Travel ${N(dist+' nm')} at ${N(tas+' TAS')} with a ${N(w+' kt '+(head?'headwind':'tailwind'))}. How many minutes?`,unit:'min',ans:m,tol:e?0:0.5,
       steps:[`GS = ${tas} ${head?'−':'+'} ${w} = ${gs} kt`,`${gs} ÷ 60 = ${npm} nm/min`,`${dist} ÷ ${npm} = ${m} min`],say:'Groundspeed first, then distance over groundspeed.'};},
