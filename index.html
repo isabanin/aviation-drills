@@ -83,6 +83,39 @@ h2{font-size:1.7rem}
 .seg button[aria-checked="true"]{background:var(--magenta);color:#fff;font-weight:600}
 .seg.locked button{cursor:default}
 .seg.locked button[aria-checked="false"]{opacity:.45}
+.mult-note{margin:0;font-size:.88rem;color:var(--muted);max-width:52ch;flex-basis:100%}
+.dash{display:flex;flex-direction:column;gap:14px;width:100%;border-top:1px solid var(--rule);padding-top:16px;margin-top:6px}
+.dash h3{margin:0}
+.dash-empty p,.dmeta,.note{margin:0;color:var(--muted);font-size:.88rem;max-width:60ch}
+.dmeta b{color:var(--ink);font-weight:600}
+.tbl-wrap{overflow-x:auto;width:100%}
+.sk td:last-child,.sk th:last-child{text-align:right}
+.chip{display:inline-block;font:600 .74rem var(--body);padding:3px 8px;border-radius:999px;white-space:nowrap}
+.chip.strong{background:var(--good-soft);color:var(--good)} .chip.ok{background:var(--t-sq);color:var(--ink)} .chip.weak{background:var(--bad-soft);color:var(--bad)} .chip.none{background:var(--t-mir);color:var(--muted)}
+.heat-wrap{display:flex;flex-direction:column;gap:10px;width:100%}
+.heat{display:grid;grid-template-columns:repeat(9,1fr);gap:3px;max-width:400px;width:100%;font-family:var(--mono);font-size:.85rem;font-variant-numeric:tabular-nums}
+.heat>*{aspect-ratio:1;display:flex;align-items:center;justify-content:center;border-radius:4px;min-width:0}
+.heat .hd{background:var(--ink);color:var(--panel);font-weight:600}
+.heat .c{border:0;font:inherit;cursor:pointer;color:var(--ink);padding:0}
+.heat .c.sel,.bchip.sel{box-shadow:inset 0 0 0 2.5px var(--magenta)}
+.heat .c{-webkit-tap-highlight-color:transparent}
+.heat .c:focus-visible,.bchip:focus-visible{outline:2px solid var(--magenta);outline-offset:1px}
+.c.miss,.legend i.miss,.bchip.miss{background:var(--t-core);color:var(--bad);font-weight:700}
+.c.slow,.legend i.slow,.bchip.slow{background:var(--t-sq)}
+.c.good,.legend i.good,.bchip.good{background:var(--t-rule)}
+.c.none,.legend i.none,.bchip.none{background:var(--t-mir);color:var(--muted)}
+.bridge{display:flex;flex-wrap:wrap;gap:8px}
+.bchip{border:0;font:600 .9rem var(--mono);padding:8px 14px;border-radius:8px;cursor:pointer;color:var(--ink)}
+.cell-info{margin:0;font-size:.86rem;color:var(--muted);min-height:1.4em}
+.recent{display:flex;flex-direction:column;gap:8px;width:100%}
+.recent ol{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px;font-size:.9rem}
+.recent li{display:grid;grid-template-columns:1fr auto;gap:0 12px;align-items:baseline;border-top:1px solid var(--rule);padding-top:6px}
+.recent li span{min-width:0}
+.recent li b{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.recent li b.hi{color:var(--good)} .recent li b.mid{color:var(--magenta)} .recent li b.lo{color:var(--bad)}
+.recent li em{font-style:normal;color:var(--muted);font-size:.82rem;grid-column:1/-1}
+.btn.danger{border-color:var(--bad);color:var(--bad)}
+@media (max-width:400px){.heat{font-size:.74rem;gap:2px}}
 .lock{text-transform:none;letter-spacing:0;font-family:var(--body);font-size:.8rem}
 .seg button:focus-visible{outline:2px solid var(--magenta);outline-offset:1px}
 .mode select:focus-visible{outline:2px solid var(--magenta);outline-offset:2px}
@@ -154,7 +187,8 @@ h2{font-size:1.7rem}
         <label for="mode">Practice</label>
         <select id="mode"></select>
       </div>
-      <div class="mode">
+      <p class="mult-note" id="multNote" hidden>Adaptive: facts, reverse, division and ×3 / ×5 / ÷6 / ×tens problems. Weak and slow items come back more often.</p>
+      <div class="mode" id="lvlWrap">
         <span class="lbl" id="lvlLbl">Difficulty</span>
         <div class="seg" id="lvl" role="radiogroup" aria-labelledby="lvlLbl">
         </div>
@@ -172,6 +206,7 @@ h2{font-size:1.7rem}
         <span class="est" id="est">about 5 min</span>
       </div>
       <button class="btn" type="button" id="startBtn">Start session</button>
+      <div class="dash" id="dash"></div>
     </div>
     <div class="play" id="playView" hidden>
     <div>
@@ -328,16 +363,7 @@ const TYPES={
     if(v===2)return{q:`Dumping at ${N(fmt(rate)+' lb/min')} for ${N(min+' minutes')}. How much fuel is gone?`,unit:'lb',ans:amt,tol:0,steps:[`${fmt(rate)} × ${min} = ${fmt(amt)} lb`],say:'Rate times time.'};
     return{q:pick([`Dumping fuel at ${N(fmt(rate)+' lb/min')}. How long to dump ${N(fmt(amt)+' lb')}?`,`How long to jettison ${N(fmt(amt)+' lb')} at ${N(fmt(rate)+' pounds a minute')}?`]),unit:'min',ans:min,tol:0.5,
       steps:[`${fmt(amt)} ÷ ${fmt(rate)} = ${min} min`],say:'Drop common zeros first, then divide.'};}},
-  mult:{label:'Times table',gen(set){
-    const [a,b]=mPick(set),p=a*b,pair=Math.min(a,b)+'x'+Math.max(a,b);
-    if(set!=='all'&&Math.random()<.3){ // reverse: find the missing factor
-      const left=Math.random()<.5,known=left?b:a,miss=left?a:b;
-      return{q:`<span class="n">${left?'?':a} × ${left?b:'?'} = ${p}</span>`,unit:'',ans:miss,tol:0,
-        steps:[`${p} ÷ ${known} = ${miss}`,`Check: ${a} × ${b} = ${p}`,mHint(a,b)],extra:mTable(a,b),pair,
-        say:`Ask yourself which ${known}× fact gives ${p}.`};}
-    return{q:`<span class="n">${a} × ${b}</span> = ?`,unit:'',ans:p,tol:0,
-      steps:[`${a} × ${b} = ${p}`,mHint(a,b)],extra:mTable(a,b),
-      pair,say:'Answer from memory. Target: under 3 seconds, no counting.'};}}
+  mult:{label:'Times table',gen(){return mNext();}}
 };
 function mCat(a,b){const lo=Math.min(a,b),hi=Math.max(a,b);
   if(lo===1||hi===10)return'rule';if(lo===2||lo===5||hi===5)return'pat';if(lo===hi)return'sq';return'core';}
@@ -388,31 +414,90 @@ const SIMPLE={
       steps:[`${fmt(amt)} ÷ ${fmt(rate)} = ${min} min`],say:'Drop common zeros first, then divide.'};},
 };
 const LEVELS=['easy','medium','hard'];
-// Times table sets: Hard = red practice set + squares (21 pairs), All = 2-9 table (36 pairs). Missed pairs come back sooner.
-const MP=[];for(let a=2;a<=9;a++)for(let b=a;b<=9;b++)MP.push([a,b]);
-const MPOOL={hard:MP.filter(([a,b])=>/core|sq/.test(mCat(a,b))),all:MP};
-let miss=[],lastPair='';
-try{const m=JSON.parse(localStorage.getItem('dmd-miss')||'[]');if(Array.isArray(m))miss=m.filter(k=>/^[2-9]x[2-9]$/.test(k));}catch(e){}
-function mPick(set){
-  const pool=MPOOL[set]||MPOOL.hard,keys=pool.map(x=>x.join('x')),due=miss.filter(k=>k!==lastPair&&keys.includes(k));let p;
-  if(due.length&&Math.random()<.3)p=due[Math.floor(Math.random()*due.length)].split('x').map(Number);
-  else for(let i=0;i<20;i++){p=pick(pool);if(p.join('x')!==lastPair)break;}
-  lastPair=p.join('x');return Math.random()<.5?p:[p[1],p[0]];}
-function mTrack(k,ok){const i=miss.indexOf(k);if(ok){if(i>=0)miss.splice(i,1);}else if(i<0)miss.push(k);try{localStorage.setItem('dmd-miss',JSON.stringify(miss))}catch(e){}}
 const MIXED=Object.keys(TYPES);
 const fa=c=>{const n=c.ans;if(c.unit==='nm/min')return(+n.toFixed(2)).toString();if(Math.abs(n)>=1000)return fmt(n);return(+n.toFixed(1)).toString();};
 
-let mode='all',lvl='hard',mlvl='hard',cur=null,start=0,tick=null,answered=false,hiddenAt=0;
+let mode='all',lvl='hard',cur=null,start=0,tick=null,answered=false,hiddenAt=0;
 const $=id=>document.getElementById(id);
 const store=(k,v)=>{try{v===null?localStorage.removeItem(k):localStorage.setItem(k,JSON.stringify(v))}catch(e){}};
 const load=k=>{try{return JSON.parse(localStorage.getItem(k)||'null')}catch(e){return null}};
+const esc=t=>String(t).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+// ---- Adaptive engine (Leitner boxes) ----
+// Every answer updates its items: a fast correct answer moves an item up a box, a slow one caps it at box 1, a miss drops it to box 0.
+// Low boxes get picked far more often. Items: times table facts (m:7x8), bridge kinds (m:x3...), and skills (s:desc...).
+const BOXW=[10,6,3.5,2,1.2,0.7],NEWW=4,SKW=[3,2.2,1.6,1.2,1,.8],SKNEW=1.5;
+const TARGET={desc:15,slow:20,rate:8,vsreq:20,wind:20,npm:5,fuel:12,mult:4};
+let items=load('dmd-items')||{},qn=load('dmd-qn')||0;
+(()=>{const old=load('dmd-miss');if(Array.isArray(old)){old.forEach(k=>{if(/^[2-9]x[2-9]$/.test(k)&&!items['m:'+k])items['m:'+k]={n:1,ok:0,slow:0,box:0,sec:0,lastQ:0,lastSlow:false,lastOk:false};});store('dmd-items',items);store('dmd-miss',null);}})();
+function bump(key,ok,sec,target){const it=items[key]=items[key]||{n:0,ok:0,slow:0,box:0,sec:0,lastQ:0};
+  const slow=ok&&sec>target;it.n++;if(ok)it.ok++;if(slow)it.slow++;it.sec=it.sec?it.sec*.7+sec*.3:sec;it.lastQ=qn;it.lastOk=ok;it.lastSlow=slow;it.t=Date.now();
+  it.box=!ok?0:slow?Math.min(it.box,1):Math.min(5,it.box+1);}
+function logAnswer(c,ok,sec){qn++;bump('s:'+c.key,ok,sec,TARGET[c.key]);(c.items||[]).forEach(k=>bump(k,ok,sec,c.target||TARGET[c.key]));
+  const lg=load('dmd-log')||{},a=lg[c.key]=lg[c.key]||[];a.push([ok?1:0,sec,c.target||TARGET[c.key]]);if(a.length>50)a.splice(0,a.length-50);
+  store('dmd-log',lg);store('dmd-items',items);store('dmd-qn',qn);}
+function wOf(key,boxw,neww){const it=items[key];if(!it)return neww;let w=boxw[it.box];const gap=qn-it.lastQ;if(gap<3)w*=.1;else if(gap<6)w*=.5;return w;}
+function wpick(keys,boxw=BOXW,neww=NEWW){const ws=keys.map(k=>wOf(k,boxw,neww)),tot=ws.reduce((a,b)=>a+b,0);let r=Math.random()*tot;for(let i=0;i<keys.length;i++){r-=ws[i];if(r<=0)return keys[i];}return keys[keys.length-1];}
+const pickSkill=()=>wpick(MIXED.map(k=>'s:'+k),SKW,SKNEW).slice(2);
+
+// Times table: 2-9 facts in three forms plus bridge problems that use the facts the way the descent math does
+const FACTS=[];for(let a=2;a<=9;a++)for(let b=a;b<=9;b++)FACTS.push('m:'+a+'x'+b);
+const BRIDGE={
+  'm:x3':{label:'× 3',gen(){let n;do{n=R(12,49)}while(n%10===0);const t=n-n%10,u=n%10;
+    return{q:`<span class="n">${n} × 3</span> = ?`,ans:n*3,steps:[`${t} × 3 = ${t*3}`,`${u} × 3 = ${u*3}`,`${t*3} + ${u*3} = ${n*3}`],say:'Split into tens and ones. Same step as 3:1 descent planning.'};}},
+  'm:x5':{label:'× 5',gen(){let n;do{n=R(13,99)}while(n%10===0);
+    return{q:`<span class="n">${n} × 5</span> = ?`,ans:n*5,steps:[`${n} × 10 = ${n*10}`,`${n*10} ÷ 2 = ${n*5}`],say:'Times ten, then halve. Same step as the 3° descent rate.'};}},
+  'm:d6':{label:'÷ 6',gen(){let r;do{r=R(12,80)}while(r%10===0);const p=r*6,t=r-r%10;
+    return{q:`<span class="n">${p} ÷ 6</span> = ?`,ans:r,steps:[`${t*6} ÷ 6 = ${t}`,`${p-t*6} ÷ 6 = ${r-t}`,`${t} + ${r-t} = ${r}`],say:'Split into chunks you know. Same step as dividing groundspeed by 60.'};}},
+  'm:tens':{label:'× tens',gen(){const a=R(2,9),b=R(2,9)*10,flip=Math.random()<.5;
+    return{q:`<span class="n">${flip?b+' × '+a:a+' × '+b}</span> = ?`,ans:a*b,steps:[`${a} × ${b/10} = ${a*b/10}`,`Add the zero: ${a*b}`],say:'Multiply the single digits, then add the zero back.'};}}
+};
+const BKEYS=Object.keys(BRIDGE);
+let lastM='';
+function mNext(){let key;const due=FACTS.concat(BKEYS).filter(k=>items[k]&&items[k].box===0&&qn-items[k].lastQ>=3&&k!==lastM);
+  if(due.length&&Math.random()<.5)key=pick(due);else for(let i=0;i<10;i++){key=Math.random()<.7?wpick(FACTS):wpick(BKEYS);if(key!==lastM)break;}lastM=key;
+  if(BRIDGE[key]){const g=BRIDGE[key].gen();return Object.assign(g,{unit:'',tol:0,items:[key],target:8});}
+  const [lo,hi]=key.slice(2).split('x').map(Number),swap=Math.random()<.5,a=swap?hi:lo,b=swap?lo:hi,p=a*b,it=items[key],strong=it&&it.box>=3;
+  const r=Math.random(),form=r<(strong?.3:.6)?'fwd':r<(strong?.65:.8)?'rev':'div',tbl=mTable(a,b),hint=mHint(a,b);
+  if(form==='rev'){const left=Math.random()<.5,known=left?b:a,miss=left?a:b;
+    return{q:`<span class="n">${left?'?':a} × ${left?b:'?'} = ${p}</span>`,unit:'',ans:miss,tol:0,items:[key],target:4,
+      steps:[`${p} ÷ ${known} = ${miss}`,`Check: ${a} × ${b} = ${p}`,hint],extra:tbl,say:`Ask yourself which ${known}× fact gives ${p}.`};}
+  if(form==='div')return{q:`<span class="n">${p} ÷ ${a}</span> = ?`,unit:'',ans:b,tol:0,items:[key],target:4,
+      steps:[`${a} × ${b} = ${p}, so ${p} ÷ ${a} = ${b}`,hint],extra:tbl,say:'Division is the times table read backwards.'};
+  return{q:`<span class="n">${a} × ${b}</span> = ?`,unit:'',ans:p,tol:0,items:[key],target:3,steps:[`${a} × ${b} = ${p}`,hint],extra:tbl,say:'Answer from memory. Target: under 3 seconds, no counting.'};}
+
+// ---- Progress dashboard ----
+// Red: last answer wrong. Yellow: last answer slow, or recovering from a miss/slow answer and not yet confirmed 3 times. Green: otherwise.
+function mState(it){if(!it)return'none';if(!it.lastOk)return'miss';if(it.lastSlow)return'slow';if((it.n>it.ok||it.slow>0)&&it.box<3)return'slow';return'good';}
+const STATE_LBL={good:'Solid',slow:'Slow or shaky',miss:'Missed last time',none:'Not practiced yet'};
+function renderDash(){const lg=load('dmd-log')||{},hist=load('dmd-hist')||[],el=$('dash');
+  const skills=Object.keys(TYPES).map(k=>{const a=lg[k]||[],n=a.length,ok=a.filter(x=>x[0]).length,slow=a.filter(x=>x[0]&&x[1]>x[2]).length,avg=n?Math.round(a.reduce((s,x)=>s+x[1],0)/n):0,it=items['s:'+k];
+    const acc=n?Math.round(ok/n*100):null,st=!n?'none':acc<75||slow/n>.4?'weak':acc>=90&&slow/n<=.2?'strong':'ok';return{k,n,acc,avg,st,all:it?it.n:0};});
+  const answered=skills.reduce((s,x)=>s+x.all,0);
+  if(!answered){el.innerHTML=`<div class="dash-empty"><h3>Your progress</h3><p>Finish a few questions and this fills in with your accuracy per skill and a times table map of your weak spots.</p></div>`;return;}
+  const focus=skills.filter(x=>x.st==='weak').sort((a,b)=>a.acc-b.acc).slice(0,2).map(x=>TYPES[x.k].label);
+  const chip={strong:'Strong',ok:'Okay',weak:'Needs work',none:'No data'};
+  let h=`<h3>Your progress</h3><p class="dmeta">${answered} answers logged${hist.length?` · ${hist.length} session${hist.length>1?'s':''}`:''}${focus.length?` · Focus next: <b>${focus.join(', ')}</b>`:''}</p>`;
+  h+=`<div class="tbl-wrap"><table class="bk sk"><thead><tr><th>Skill</th><th>Right</th><th>Avg</th><th>Status</th></tr></thead><tbody>${skills.map(x=>`<tr><td>${TYPES[x.k].label}</td><td>${x.acc===null?'–':x.acc+'%'}</td><td>${x.n?x.avg+'s':'–'}</td><td><span class="chip ${x.st}">${chip[x.st]}</span></td></tr>`).join('')}</tbody></table></div><p class="note">Based on your last 50 answers per skill. A correct answer slower than the target time counts as slow.</p>`;
+  h+=`<div class="heat-wrap"><div class="lbl">Times table</div><div class="heat" id="heat" role="grid" aria-label="Times table weak spots"><div class="hd">×</div>`;
+  for(let j=2;j<=9;j++)h+=`<div class="hd">${j}</div>`;
+  for(let i=2;i<=9;i++){h+=`<div class="hd">${i}</div>`;for(let j=2;j<=9;j++){const lo=Math.min(i,j),hi=Math.max(i,j),k='m:'+lo+'x'+hi,s=mState(items[k]);h+=`<button type="button" class="c ${s}" data-k="${k}" aria-label="${i} times ${j}: ${STATE_LBL[s]}">${i*j}</button>`;}}
+  h+=`</div><ul class="legend"><li><i class="miss"></i>Missed</li><li><i class="slow"></i>Slow or shaky</li><li><i class="good"></i>Solid</li><li><i class="none"></i>Not practiced</li></ul>`;
+  h+=`<div class="bridge">${BKEYS.map(k=>{const s=mState(items[k]);return`<button type="button" class="bchip ${s}" data-k="${k}">${BRIDGE[k].label}</button>`;}).join('')}</div><p class="cell-info" id="cellInfo" aria-live="polite">Tap a cell to see its history.</p></div>`;
+  if(hist.length)h+=`<div class="recent"><div class="lbl">Recent sessions</div><ol>${hist.slice(-5).reverse().map(x=>`<li><span>${new Date(x.t).toLocaleDateString(undefined,{month:'short',day:'numeric'})} · ${esc(x.label)}</span><b class="${x.pct>=75?'hi':x.pct>=50?'mid':'lo'}">${x.pct}%</b><em>${x.n} q · ${x.avg}s avg</em></li>`).join('')}</ol></div>`;
+  h+=`<button type="button" class="btn ghost sm" id="resetBtn">Reset progress</button>`;
+  el.innerHTML=h;
+  el.querySelectorAll('[data-k]').forEach(b=>b.addEventListener('click',()=>{el.querySelectorAll('.sel').forEach(x=>x.classList.remove('sel'));el.querySelectorAll(`[data-k="${b.dataset.k}"]`).forEach(x=>x.classList.add('sel'));const k=b.dataset.k,it=items[k],name=BRIDGE[k]?BRIDGE[k].label+' problems':k.slice(2).replace('x',' × ');
+    $('cellInfo').textContent=it?`${name}: ${it.ok} of ${it.n} right, ${it.slow} slow, recent avg ${it.sec.toFixed(1)}s. ${STATE_LBL[mState(it)]}.`:`${name}: not practiced yet.`;}));
+  const rb=$('resetBtn');let armed=false;rb.addEventListener('click',()=>{if(!armed){armed=true;rb.textContent='Tap again to erase all progress';rb.classList.add('danger');setTimeout(()=>{armed=false;if(rb.isConnected){rb.textContent='Reset progress';rb.classList.remove('danger');}},4000);return;}
+    items={};qn=0;['dmd-items','dmd-qn','dmd-log','dmd-hist'].forEach(k=>store(k,null));renderDash();});}
+
 
 // Session: {n: target count, res: [{k,ok,sec,q,a,skip}]}
 let ses=load('dmd-session');if(!ses||!Array.isArray(ses.res)||!(ses.n>0)||ses.res.length>=ses.n)ses=null;
 const saveSes=()=>store('dmd-session',ses);
 const PER_Q=15; // seconds per question used for the time estimate
 function view(v){$('startView').hidden=v!=='start';$('playView').hidden=v!=='play';$('sumView').hidden=v!=='sum';
-  const on=v==='play';$('stats').hidden=!on;$('stopBtn').hidden=!on;$('prog').hidden=!on;$('controls').hidden=v!=='start';$('sesInfo').hidden=!on;if(on)$('sesInfo').textContent=(mode==='all'?'All skills, mixed':TYPES[mode].label)+' · '+(mode==='mult'?(mlvl==='all'?'All':'Hard')+' set':lvl[0].toUpperCase()+lvl.slice(1));renderLvl();}
+  const on=v==='play';$('stats').hidden=!on;$('stopBtn').hidden=!on;$('prog').hidden=!on;$('controls').hidden=v!=='start';$('sesInfo').hidden=!on;if(on)$('sesInfo').textContent=(mode==='all'?'All skills, mixed':TYPES[mode].label)+' · '+(mode==='mult'?'Adaptive':lvl[0].toUpperCase()+lvl.slice(1));renderLvl();if(v==='start')renderDash();}
 function renderStats(){if(!ses)return;const r=ses.res,right=r.filter(x=>x.ok).length,t=r.reduce((a,x)=>a+x.sec,0);
   $('sQ').textContent=Math.min(r.length+(answered?0:1),ses.n);$('sN').textContent=ses.n;$('sRight').textContent=right+'/'+r.length;
   $('sAvg').textContent=r.length?Math.round(t/r.length)+'s':'–';$('progBar').style.width=(r.length/ses.n*100)+'%';}
@@ -420,11 +505,11 @@ const elapsed=()=>Math.min(300,Math.round((Date.now()-start)/1000));
 document.addEventListener('visibilitychange',()=>{if(document.hidden)hiddenAt=Date.now();else if(hiddenAt){start+=Date.now()-hiddenAt;hiddenAt=0;}});
 function record(ok,skip){if(!ses||answered)return;answered=true;clearInterval(tick);const sec=elapsed();
   ses.res.push({k:cur.key,ok,sec,q:$('question').textContent,a:fa(cur)+(cur.unit?' '+cur.unit:''),skip:!!skip});saveSes();
-  if(cur.pair)mTrack(cur.pair,ok);renderStats();if(ses.res.length>=ses.n)$('nextBtn').textContent='See score';return sec;}
+  logAnswer(cur,ok,sec);renderStats();if(ses.res.length>=ses.n)$('nextBtn').textContent='See score';return sec;}
 const isDone=()=>ses&&ses.res.length>=ses.n;
 
 function next(){if(isDone())return finish();
-  const k=mode==='all'?pick(MIXED):mode;cur=Object.assign({key:k},k==='mult'?TYPES.mult.gen(mode==='mult'?mlvl:(lvl==='easy'?'all':'hard')):lvl==='hard'?TYPES[k].gen():SIMPLE[k](lvl==='easy'));answered=false;
+  const k=mode==='all'?pickSkill():mode;cur=Object.assign({key:k},k==='mult'?mNext():lvl==='hard'?TYPES[k].gen():SIMPLE[k](lvl==='easy'));answered=false;
   $('qtype').textContent=TYPES[k].label;$('question').innerHTML=cur.q;$('unit').textContent=cur.unit;$('answer').value='';$('result').hidden=true;$('nextBtn').textContent='Next';
   start=Date.now();clearInterval(tick);tick=setInterval(()=>{$('timer').textContent=elapsed()+'s'},500);$('timer').textContent='0s';renderStats();
   try{$('answer').focus({preventScroll:true})}catch(e){}}
@@ -465,7 +550,6 @@ $('count').addEventListener('change',()=>{count=clampN(parseFloat($('count').val
 $('startBtn').onclick=()=>{count=clampN(parseFloat($('count').value));store('dmd-count',count);ses={n:count,res:[]};saveSes();view('play');next();};
 $('stopBtn').onclick=()=>{if(!ses||advancing)return;if(!ses.res.length){ses=null;store('dmd-session',null);clearInterval(tick);view('start');return;}finish();};
 const mmss=s=>Math.floor(s/60)+':'+String(s%60).padStart(2,'0');
-const esc=t=>t.replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 function finish(){clearInterval(tick);const r=ses.res,n=r.length,right=r.filter(x=>x.ok).length,t=r.reduce((a,x)=>a+x.sec,0),pct=n?Math.round(right/n*100):0;
   const early=n<ses.n,verdict=pct>=90?'Interview ready':pct>=75?'Solid':pct>=50?'Getting there':'Keep drilling';
   const by={};r.forEach(x=>{const b=by[x.k]=by[x.k]||{n:0,ok:0,t:0};b.n++;b.t+=x.sec;if(x.ok)b.ok++;});
@@ -474,6 +558,7 @@ function finish(){clearInterval(tick);const r=ses.res,n=r.length,right=r.filter(
   $('sumView').innerHTML=`<div class="score ${pct>=75?'hi':pct>=50?'mid':'lo'}"><div class="pct">${pct}<small>%</small></div><div class="sline"><div class="vword">${verdict}</div><div class="smeta">${right} of ${n} right${early?` · ended early (${n} of ${ses.n})`:''}<br>Avg ${n?Math.round(t/n):0}s per question · ${mmss(t)} total</div></div></div>
     ${rows}${miss.length?`<div class="misses"><div class="lbl">Missed</div><ol>${miss.map(x=>`<li><span>${esc(x.q)}</span><b>${x.skip?'Skipped · ':''}${esc(x.a)}</b></li>`).join('')}</ol></div>`:''}
     <button class="btn" type="button" id="againBtn">New session</button>`;
+  const hist=load('dmd-hist')||[];hist.push({t:Date.now(),n,pct,avg:n?Math.round(t/n):0,label:$('sesInfo').textContent});if(hist.length>30)hist.splice(0,hist.length-30);store('dmd-hist',hist);
   ses=null;store('dmd-session',null);try{$('answer').blur()}catch(e){}
   view('sum');$('againBtn').onclick=()=>{view('start');renderCount();};
   if(pct>=90&&!matchMedia('(prefers-reduced-motion: reduce)').matches){const b=$('sumView').querySelector('.pct');b.animate([{transform:'scale(.6)',opacity:0},{transform:'scale(1.08)',opacity:1},{transform:'scale(1)'}],{duration:600,easing:'cubic-bezier(.3,1.6,.5,1)'});}}
@@ -482,16 +567,14 @@ const sel=$('mode');
 sel.innerHTML='<option value="all">All skills, mixed</option>'+Object.keys(TYPES).map(k=>`<option value="${k}">${TYPES[k].label}</option>`).join('');
 sel.value=mode;
 sel.addEventListener('change',()=>{mode=sel.value;try{localStorage.setItem('dmd-mode',mode)}catch(e){};renderLvl();if(ses&&!advancing){if(!answered&&cur){next();}}});
-try{const l=localStorage.getItem('dmd-level');if(LEVELS.includes(l))lvl=l;const m=localStorage.getItem('dmd-mlevel');if(m==='hard'||m==='all')mlvl=m;}catch(e){}
-const LVL_OPTS={std:[['easy','Easy'],['medium','Medium'],['hard','Hard']],mult:[['hard','Hard'],['all','All']]};
-function renderLvl(){const m=mode==='mult',cur=m?mlvl:lvl,lock=!!ses;$('lvlLbl').innerHTML=(m?'Set':'Difficulty')+(lock?' <span class="lock">· locked for this session</span>':'');
-  $('lvl').classList.toggle('locked',lock);
-  $('lvl').innerHTML=LVL_OPTS[m?'mult':'std'].map(([v,t])=>`<button type="button" role="radio" id="lvl-${v}" data-l="${v}" aria-checked="${v===cur}"${lock?' disabled':''}>${t}</button>`).join('');}
+try{const l=localStorage.getItem('dmd-level');if(LEVELS.includes(l))lvl=l;}catch(e){}
+const LVL_OPTS=[['easy','Easy'],['medium','Medium'],['hard','Hard']];
+function renderLvl(){$('lvlWrap').hidden=mode==='mult';$('multNote').hidden=mode!=='mult';
+  $('lvl').innerHTML=LVL_OPTS.map(([v,t])=>`<button type="button" role="radio" id="lvl-${v}" data-l="${v}" aria-checked="${v===lvl}">${t}</button>`).join('');}
 $('lvl').addEventListener('click',e=>{const b=e.target.closest('button');if(!b||ses)return;const v=b.dataset.l;
-  if(mode==='mult'){if(mlvl===v)return;mlvl=v;try{localStorage.setItem('dmd-mlevel',v)}catch(e){}}
-  else{if(lvl===v)return;lvl=v;try{localStorage.setItem('dmd-level',v)}catch(e){}}
+  if(lvl===v)return;lvl=v;try{localStorage.setItem('dmd-level',v)}catch(e){}
   renderLvl();});
-renderLvl();renderCount();if(ses){view('play');next();}else view('start');
+renderCount();if(ses){view('play');next();}else view('start');
 })();
 </script>
 
