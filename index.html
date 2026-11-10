@@ -426,8 +426,10 @@ const esc=t=>String(t).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',
 // Every answer updates its items: a fast correct answer moves an item up a box, a slow one caps it at box 1, a miss drops it to box 0.
 // Low boxes get picked far more often. Items: times table facts (m:7x8), bridge kinds (m:x3...), and skills (s:desc...).
 const BOXW=[10,6,3.5,2,1.2,0.7],NEWW=4,SKW=[3,2.2,1.6,1.2,1,.8],SKNEW=1.5;
-const TARGET={desc:15,slow:20,rate:8,vsreq:20,wind:20,npm:5,fuel:12,mult:4};
+// Seconds before a correct answer counts as slow. Multi-step problems get interview-style thinking time; memorized facts stay quick.
+const TARGET={desc:30,slow:45,rate:15,vsreq:60,wind:45,npm:10,fuel:30,mult:4};
 let items=load('dmd-items')||{},qn=load('dmd-qn')||0;
+if(!load('dmd-tv2')){Object.keys(items).forEach(k=>{const it=items[k];if(k.startsWith('s:')&&it.lastSlow){it.lastSlow=false;if(it.lastOk&&it.box<2)it.box=2;}});store('dmd-items',items);store('dmd-tv2',1);}
 (()=>{const old=load('dmd-miss');if(Array.isArray(old)){old.forEach(k=>{if(/^[2-9]x[2-9]$/.test(k)&&!items['m:'+k])items['m:'+k]={n:1,ok:0,slow:0,box:0,sec:0,lastQ:0,lastSlow:false,lastOk:false};});store('dmd-items',items);store('dmd-miss',null);}})();
 function bump(key,ok,sec,target){const it=items[key]=items[key]||{n:0,ok:0,slow:0,box:0,sec:0,lastQ:0};
   const slow=ok&&sec>target;it.n++;if(ok)it.ok++;if(slow)it.slow++;it.sec=it.sec?it.sec*.7+sec*.3:sec;it.lastQ=qn;it.lastOk=ok;it.lastSlow=slow;it.t=Date.now();
@@ -455,7 +457,7 @@ const BKEYS=Object.keys(BRIDGE);
 let lastM='';
 function mNext(){let key;const due=FACTS.concat(BKEYS).filter(k=>items[k]&&items[k].box===0&&qn-items[k].lastQ>=3&&k!==lastM);
   if(due.length&&Math.random()<.5)key=pick(due);else for(let i=0;i<10;i++){key=Math.random()<.7?wpick(FACTS):wpick(BKEYS);if(key!==lastM)break;}lastM=key;
-  if(BRIDGE[key]){const g=BRIDGE[key].gen();return Object.assign(g,{unit:'',tol:0,items:[key],target:8});}
+  if(BRIDGE[key]){const g=BRIDGE[key].gen();return Object.assign(g,{unit:'',tol:0,items:[key],target:15});}
   const [lo,hi]=key.slice(2).split('x').map(Number),swap=Math.random()<.5,a=swap?hi:lo,b=swap?lo:hi,p=a*b,it=items[key],strong=it&&it.box>=3;
   const r=Math.random(),form=r<(strong?.3:.6)?'fwd':r<(strong?.65:.8)?'rev':'div',tbl=mTable(a,b),hint=mHint(a,b);
   if(form==='rev'){const left=Math.random()<.5,known=left?b:a,miss=left?a:b;
@@ -470,14 +472,14 @@ function mNext(){let key;const due=FACTS.concat(BKEYS).filter(k=>items[k]&&items
 function mState(it){if(!it)return'none';if(!it.lastOk)return'miss';if(it.lastSlow)return'slow';if((it.n>it.ok||it.slow>0)&&it.box<3)return'slow';return'good';}
 const STATE_LBL={good:'Solid',slow:'Slow or shaky',miss:'Missed last time',none:'Not practiced yet'};
 function renderDash(){const lg=load('dmd-log')||{},hist=load('dmd-hist')||[],el=$('dash');
-  const skills=Object.keys(TYPES).map(k=>{const a=lg[k]||[],n=a.length,ok=a.filter(x=>x[0]).length,slow=a.filter(x=>x[0]&&x[1]>x[2]).length,avg=n?Math.round(a.reduce((s,x)=>s+x[1],0)/n):0,it=items['s:'+k];
+  const skills=Object.keys(TYPES).map(k=>{const a=lg[k]||[],n=a.length,ok=a.filter(x=>x[0]).length,slow=a.filter(x=>x[0]&&x[1]>(k==='mult'?x[2]:Math.max(x[2],TARGET[k]))).length,avg=n?Math.round(a.reduce((s,x)=>s+x[1],0)/n):0,it=items['s:'+k];
     const acc=n?Math.round(ok/n*100):null,st=!n?'none':acc<75||slow/n>.4?'weak':acc>=90&&slow/n<=.2?'strong':'ok';return{k,n,acc,avg,st,all:it?it.n:0};});
   const answered=skills.reduce((s,x)=>s+x.all,0);
   if(!answered){el.innerHTML=`<div class="dash-empty"><h3>Your progress</h3><p>Finish a few questions and this fills in with your accuracy per skill and a times table map of your weak spots.</p></div>`;return;}
   const focus=skills.filter(x=>x.st==='weak').sort((a,b)=>a.acc-b.acc).slice(0,2).map(x=>TYPES[x.k].label);
   const chip={strong:'Strong',ok:'Okay',weak:'Needs work',none:'No data'};
   let h=`<h3>Your progress</h3><p class="dmeta">${answered} answers logged${hist.length?` · ${hist.length} session${hist.length>1?'s':''}`:''}${focus.length?` · Focus next: <b>${focus.join(', ')}</b>`:''}</p>`;
-  h+=`<div class="tbl-wrap"><table class="bk sk"><thead><tr><th>Skill</th><th>Right</th><th>Avg</th><th>Status</th></tr></thead><tbody>${skills.map(x=>`<tr><td>${TYPES[x.k].label}</td><td>${x.acc===null?'–':x.acc+'%'}</td><td>${x.n?x.avg+'s':'–'}</td><td><span class="chip ${x.st}">${chip[x.st]}</span></td></tr>`).join('')}</tbody></table></div><p class="note">Based on your last 50 answers per skill. A correct answer slower than the target time counts as slow.</p>`;
+  h+=`<div class="tbl-wrap"><table class="bk sk"><thead><tr><th>Skill</th><th>Right</th><th>Avg</th><th>Status</th></tr></thead><tbody>${skills.map(x=>`<tr><td>${TYPES[x.k].label}</td><td>${x.acc===null?'–':x.acc+'%'}</td><td>${x.n?x.avg+'s':'–'}</td><td><span class="chip ${x.st}">${chip[x.st]}</span></td></tr>`).join('')}</tbody></table></div><p class="note">Based on your last 50 answers per skill. A correct answer counts as slow past the target: 3–4 s for times table facts, 10–15 s for single steps, 30–60 s for multi-step problems.</p>`;
   h+=`<div class="heat-wrap"><div class="lbl">Times table</div><div class="heat" id="heat" role="grid" aria-label="Times table weak spots"><div class="hd">×</div>`;
   for(let j=2;j<=9;j++)h+=`<div class="hd">${j}</div>`;
   for(let i=2;i<=9;i++){h+=`<div class="hd">${i}</div>`;for(let j=2;j<=9;j++){const lo=Math.min(i,j),hi=Math.max(i,j),k='m:'+lo+'x'+hi,s=mState(items[k]);h+=`<button type="button" class="c ${s}" data-k="${k}" aria-label="${i} times ${j}: ${STATE_LBL[s]}">${i*j}</button>`;}}
@@ -517,7 +519,7 @@ function show(kind,verdict){const r=$('result');r.className='result '+kind;
   r.innerHTML=`${verdict?`<div class="verdict">${verdict}</div>`:''}<ol class="steps">${cur.steps.map(s=>`<li>${s}</li>`).join('')}</ol><p class="say">Say it: <em>${cur.say}</em></p>${cur.extra&&kind!=='good'?cur.extra:''}`;r.hidden=false;}
 
 let advancing=false;
-function celebrate(sec){advancing=true;const b=$('checkBtn'),q=$('question');b.classList.add('ok');b.textContent='✓ '+sec+'s';q.classList.add('done');$('result').hidden=true;
+function celebrate(sec){advancing=true;const b=$('checkBtn'),q=$('question'),tg=cur.target||TARGET[cur.key];b.classList.add('ok');b.textContent='✓ '+sec+'s'+(sec>tg?' · slow':'');q.classList.add('done');$('result').hidden=true;
   const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches,css=getComputedStyle(document.documentElement),cols=['--magenta','--good','--ink'].map(v=>css.getPropertyValue(v).trim());
   if(!reduce){const r=b.getBoundingClientRect(),cx=r.left+r.width/2,cy=r.top+r.height/2;
     for(let i=0;i<18;i++){const p=document.createElement('i');p.className='spark'+(i%2?' sq':'');p.style.left=cx+'px';p.style.top=cy+'px';p.style.background=cols[i%3];document.body.appendChild(p);
