@@ -187,7 +187,7 @@ h2{font-size:1.7rem}
         <label for="mode">Practice</label>
         <select id="mode"></select>
       </div>
-      <p class="mult-note" id="multNote" hidden>Adaptive: facts, reverse, division and ×3 / ×5 / ÷6 / ×tens problems. Weak and slow items come back more often.</p>
+      <p class="mult-note" id="multNote" hidden>Adaptive: times table facts plus mental shortcuts like × 1,500, ÷ 2,500, ÷ 60 and halves. Weak and slow items come back more often.</p>
       <div class="mode" id="lvlWrap">
         <span class="lbl" id="lvlLbl">Difficulty</span>
         <div class="seg" id="lvl" role="radiogroup" aria-labelledby="lvlLbl">
@@ -241,6 +241,80 @@ const minsFor=(gs,list)=>gs%60?list.filter(m=>m%2===0):list;
 const VSR=[1000,1500,2000,2500,3000];
 const DUMP=[500,1000,1500,2000,2500,3000],DMIN=[2,3,4,5,6,7,8,9,10,11,12,15,20];
 const nt=(t,v)=>t===10000&&v===250?pick([9000,11000]):t;
+// ---- Smart methods: break a hard × or ÷ into easy mental steps ----
+const fm=n=>Number.isInteger(n)?n.toLocaleString('en-US'):String(+n.toFixed(2));
+const tz=n=>{if(!Number.isInteger(n)||n===0)return 0;let k=0;while(n%10===0){n/=10;k++}return k;};
+const zs=k=>k===1?'a zero':k+' zeros';
+const gcd=(a,b)=>b?gcd(b,a%b):a;
+function fracStep(q,r,y){const g=gcd(r,y),f=r/y;return`Leftover ${r}/${y}${g>1?` = ${r/g}/${y/g}`:''} ≈ ${fm(+f.toFixed(2))}, so ≈ ${fm(+(q+f).toFixed(2))}`;}
+function mulCore(x,y){if(x<y)[x,y]=[y,x];const p=x*y;
+  if(x<=12&&y<=9)return[`${x} × ${y} = ${p}`];
+  if(y===5&&x!==25&&x!==15)return[`× 5 is half of × 10: ${fm(x)} × 10 = ${fm(x*10)}`,`Halve it: ${fm(p)}`];
+  if(y===9)return[`× 9 is × 10 minus one more: ${fm(x*10)} − ${fm(x)} = ${fm(p)}`];
+  if(x===25)return[`25 is a quarter of 100: ${fm(y)} × 100 = ${fm(y*100)}`,`Quarter it (halve twice): ${fm(y*100)} → ${fm(y*50)} → ${fm(p)}`];
+  if(x===15)return[`15 is 10 + 5: ${fm(y)} × 10 = ${fm(y*10)}, and half of that is ${fm(y*5)}`,`${fm(y*10)} + ${fm(y*5)} = ${fm(p)}`];
+  if(y===5)return[`× 5 is half of × 10: ${fm(x)} × 10 = ${fm(x*10)}`,`Halve it: ${fm(p)}`];
+  if(y===9)return[`× 9 is × 10 minus one more: ${fm(x*10)} − ${fm(x)} = ${fm(p)}`];
+  if(y>=11&&y<=19)return[`Split ${y} into 10 + ${y-10}: ${fm(x)} × 10 = ${fm(x*10)}, ${fm(x)} × ${y-10} = ${fm(x*(y-10))}`,`${fm(x*10)} + ${fm(x*(y-10))} = ${fm(p)}`];
+  if(y<=9){const pl=10**(String(x).length-1),t=Math.floor(x/pl)*pl,u=x-t;
+    return u?[`Split ${fm(x)} into ${fm(t)} + ${fm(u)}: ${fm(t)} × ${y} = ${fm(t*y)}, ${fm(u)} × ${y} = ${fm(u*y)}`,`${fm(t*y)} + ${fm(u*y)} = ${fm(p)}`]:[`${fm(x)} × ${y} = ${fm(p)}`];}
+  return[`${fm(x)} × ${fm(y)} = ${fm(p)}`];}
+function mulSteps(a,b){
+  if(!Number.isInteger(a)||!Number.isInteger(b)){const h=Number.isInteger(a)?b:a,n=h===a?b:a,w=Math.floor(h);
+    return[`Split ${fm(h)} into ${w} + ½: ${w} × ${fm(n)} = ${fm(w*n)}, and half of ${fm(n)} is ${fm(n/2)}`,`${fm(w*n)} + ${fm(n/2)} = ${fm(h*n)}`];}
+  const za=tz(a),zb=tz(b),x=a/10**za,y=b/10**zb,z=za+zb,out=[];
+  if(z&&(x>1||y>1))out.push(`Set the zeros aside: ${fm(x)} × ${fm(y)}, then put ${zs(z)} back`);
+  out.push(...mulCore(x,y));
+  if(z)out.push(`Put ${zs(z)} back: ${fm(x*y)} → ${fm(a*b)}`);
+  return out;}
+function divCore(x,y,out){const res=x/y,q=Math.floor(res),r=x-q*y;
+  if(y===1)return;
+  if(!r&&q<=12&&y<=12){out.push(`${fm(x)} ÷ ${y} = ${q}, because ${y} × ${q} = ${fm(x)}`);return;}
+  if(y===2&&!r){out.push(`Halve it: ${fm(x)} → ${fm(res)}`);return;}
+  if(y===4&&!r){out.push(`÷ 4 is halving twice: ${fm(x)} → ${fm(x/2)} → ${fm(res)}`);return;}
+  if(y===8&&!r){out.push(`÷ 8 is halving three times: ${fm(x)} → ${fm(x/2)} → ${fm(x/4)} → ${fm(res)}`);return;}
+  if(y===5){out.push(`÷ 5 is × 2 then ÷ 10: ${fm(x)} × 2 = ${fm(x*2)} → ${fm(res)}`);return;}
+  if(y<=12){
+    if(q<10){out.push(`${fm(x)} ÷ ${y} = ${q}${r?` remainder ${r}`:''}, because ${y} × ${q} = ${fm(q*y)}`);if(r)out.push(fracStep(q,r,y));return;}
+    const pl=10**(String(q).length-1),big=Math.floor(q/pl)*pl,rest=x-big*y,q2=Math.floor(rest/y),r2=rest-q2*y;
+    if(big===q&&!r){out.push(`${fm(x)} ÷ ${y} = ${fm(q)}, because ${y} × ${fm(q)} = ${fm(x)}`);return;}
+    out.push(`Split ${fm(x)} into chunks ${y} goes into: ${fm(big*y)} + ${fm(rest)}`);
+    out.push(`${fm(big*y)} ÷ ${y} = ${fm(big)}, and ${fm(rest)} ÷ ${y} = ${fm(q2)}${r2?` remainder ${r2}`:''}`);
+    out.push(`${fm(big)} + ${fm(q2)} = ${fm(q)}`);if(r2)out.push(fracStep(q,r2,y));return;}
+  out.push(`Estimate, then check by multiplying: ${fm(y)} × ${fm(res)} = ${fm(x)}`);}
+function divSteps(a,b){const out=[];let x=a,y=b;
+  const drop=()=>{const z=Math.min(tz(x),tz(y));if(z){const p=10**z;out.push(y===p?`÷ ${fm(p)} just drops ${zs(z)}: ${fm(x)} → ${fm(x/p)}`:`Drop ${zs(z)} from both: ${fm(x)} ÷ ${fm(y)} → ${fm(x/p)} ÷ ${fm(y/p)}`);x/=p;y/=p;}};
+  if(!Number.isInteger(y)&&Number.isInteger(y*2)){out.push(`Double both to get rid of the half: ${fm(x)} ÷ ${fm(y)} → ${fm(x*2)} ÷ ${fm(y*2)}`);x*=2;y*=2;}
+  drop();
+  if(y>5&&y%25===0&&y%50!==0){out.push(`Times 4 on both turns ${fm(y)} into a round number: ${fm(x)} ÷ ${fm(y)} → ${fm(x*4)} ÷ ${fm(y*4)}`);x*=4;y*=4;drop();}
+  else if(y>5&&y%5===0&&y%10!==0){out.push(`Double both so ${fm(y)} ends in zero: ${fm(x)} ÷ ${fm(y)} → ${fm(x*2)} ÷ ${fm(y*2)}`);x*=2;y*=2;drop();}
+  divCore(x,y,out);
+  if(out.length>1&&Number.isInteger(a/b))out.push(`So ${fm(a)} ÷ ${fm(b)} = ${fm(a/b)}`);
+  return out;}
+
+// Math skills technique items: each one practices a mental shortcut the aviation problems rely on
+const QM=(a,b,say)=>({q:`<span class="n">${fm(a)} × ${fm(b)}</span> = ?`,ans:a*b,steps:mulSteps(a,b),say});
+const QD=(a,b,say)=>({q:`<span class="n">${fm(a)} ÷ ${fm(b)}</span> = ?`,ans:a/b,steps:divSteps(a,b),say});
+const nz=(lo,hi)=>{let n;do{n=R(lo,hi)}while(n%10===0);return n;};
+const HALF=[1.5,2.5,3.5,4.5,5.5,6.5,7.5,8.5],HALFD=[1.5,2.5,3.5,4.5,5.5,7.5];
+const BRIDGE={
+  'm:x3':{label:'× 3',gen:()=>QM(nz(12,49),3,'Split into tens and ones. Same step as 3:1 descent planning.')},
+  'm:x5':{label:'× 5',gen:()=>QM(nz(13,99),5,'Times ten, then halve. Same step as the 3° rate.')},
+  'm:x9':{label:'× 9',gen:()=>QM(nz(12,49),9,'Times ten, then take one away.')},
+  'm:tens':{label:'× tens',gen:()=>{const a=R(2,9),b=R(2,9)*10;return Math.random()<.5?QM(a,b,'Set the zeros aside, multiply, put them back.'):QM(b,a,'Set the zeros aside, multiply, put them back.');}},
+  'm:d3':{label:'÷ 3',gen:()=>{const r=nz(11,40),k=pick([1,100,1000]);return QD(r*3*k,3,'Split into chunks 3 goes into cleanly. Same step as reversing 3:1.');}},
+  'm:d4':{label:'÷ 4',gen:()=>{const v=pick([1250,1500,1750,2250,2500,2750,3250,3500]);return QD(v*4,4,'Divide by 4 by halving twice.');}},
+  'm:d5':{label:'÷ 5',gen:()=>{const r=nz(11,99)*pick([1,10,100]);return QD(r*5,5,'Dividing by 5 is doubling, then dropping a zero.');}},
+  'm:d6':{label:'÷ 6',gen:()=>QD(nz(12,80)*6,6,'Split into chunks you know. Same step as dividing groundspeed by 60.')},
+  'm:d60':{label:'÷ 60',gen:()=>{let g;do{g=R(10,54)*10}while(g%30===0&&Math.random()<.6);return Object.assign(QD(g,60,'Drop a zero, divide by 6, turn the leftover into a fraction.'),{tol:0.05});}},
+  'm:x60':{label:'× 60',gen:()=>QM(pick(HALF.concat([2,3,4,5,6,7,8,9])),60,'nm per minute back to knots: split off the half.')},
+  'm:xh':{label:'× n.5',gen:()=>{const h=pick(HALF),n=R(2,12);return Math.random()<.5?QM(h,n,'Multiply the whole part, then add half of the other number.'):QM(n,h,'Multiply the whole part, then add half of the other number.');}},
+  'm:dh':{label:'÷ n.5',gen:()=>{const h=pick(HALFD),m=R(1,6)*2;return QD(h*m,h,'Double both sides to get rid of the half.');}},
+  'm:x15':{label:'× 1,500',gen:()=>QM(pick([15,150,1500,1500,1500]),R(2,12),'Think of 15 as 10 + 5: ten of them, plus half that again.')},
+  'm:d15':{label:'÷ 1,500',gen:()=>{const d=pick([15,150,1500,1500,1500]);return QD(d*R(2,20),d,'Drop matching zeros, then double both so you divide by 3.');}},
+  'm:x25':{label:'× 2,500',gen:()=>QM(pick([25,250,2500,2500]),R(2,19),'25 is a quarter of 100: times 100, then halve twice.')},
+  'm:d25':{label:'÷ 2,500',gen:()=>{const d=pick([25,250,2500,2500,75,750]);return QD(d*R(2,16),d,'Times 4 on both turns 25 into 100 (and 75 into 300).');}}
+};
 const TYPES={
   desc:{label:'3:1 distance',gen(){
     const fix=pick(FIX),v=R(0,5);
@@ -275,7 +349,7 @@ const TYPES={
       return{q:pick([
         `Approach gives you ${N(nm+' track miles')} to ${fix}, which you have to cross at ${N(fl(to))}. What's the highest altitude you can be at now and still make it on a normal 3:1 descent?`,
         `You've got ${N(nm+' nm')} to get down to ${N(fl(to))}. How high can you start from?`]),
-        unit:'ft',ans:top,tol:600,steps:[`${nm} ÷ 3 = ${nm/3} thousand ft you can lose`,`${fmt(to)} + ${fmt(nm/3*1000)} = ${fmt(top)} ft`],
+        unit:'ft',ans:top,tol:600,steps:[...divSteps(nm,3),`So you can lose ${nm/3} thousand ft`,`${fmt(to)} + ${fmt(nm/3*1000)} = ${fmt(top)} ft`],
         say:'Reverse the rule: miles divided by three gives thousands of feet.'};}
     const alt=R(5,30)*1000,d=alt/1000*3;
     return{q:pick([`Using 3:1, how far out do you need to lose ${N(fmt(alt)+' ft')}?`,`How many track miles does it take to lose ${N(fmt(alt)+' ft')}?`,`Walk me through descent planning with the 3-to-1 rule. How far to lose ${N(fmt(alt)+' ft')}?`]),
@@ -325,45 +399,45 @@ const TYPES={
     const fix=pick(FIX),v=R(0,3);
     if(v===1){const m=pick([2,3,4,5,6,8]),vs=pick([1000,1500,2000,2500,3000]),alt=vs*m;
       return{q:pick([`You need to lose ${N(fmt(alt)+' ft')} in ${N(m+' minutes')}. What rate?`,`ATC needs you down ${N(fmt(alt)+' ft')} within ${N(m+' minutes')}. Minimum descent rate?`]),
-        unit:'fpm',ans:vs,tol:100,steps:[`${fmt(alt)} ÷ ${m} = ${fmt(vs)} fpm`],say:'Feet divided by minutes.'};}
+        unit:'fpm',ans:vs,tol:100,steps:[`Feet ÷ minutes: ${fmt(alt)} ÷ ${m}`,...divSteps(alt,m)],say:'Feet divided by minutes.'};}
     if(v===2){const vs=pick([1000,1500,2000,2500,3000]),m=pick([3,4,5,6,8,10]),to=R(3,12)*1000,from=to+vs*m;
       return{q:pick([`Descending at ${N(fmt(vs)+' fpm')} from ${N(fl(from))} to ${N(fl(to))}. How many minutes?`,`How long to get from ${N(fl(from))} down to ${N(fl(to))} at ${N(fmt(vs)+' fpm')}?`]),
-        unit:'min',ans:m,tol:0.5,steps:[`${fmt(from)} − ${fmt(to)} = ${fmt(from-to)} ft`,`${fmt(from-to)} ÷ ${fmt(vs)} = ${m} min`],say:'Feet to lose divided by the rate.'};}
+        unit:'min',ans:m,tol:0.5,steps:[`${fmt(from)} − ${fmt(to)} = ${fmt(from-to)} ft`,...divSteps(from-to,vs)],say:'Feet to lose divided by the rate.'};}
     const gs=pick(GS60.slice(1)),min=pick([2,3,4,5,6]),npm=gs/60,nm=npm*min,vs=pick(VSR),alt=vs*min;
     if(v===3){const to=R(4,10)*1000,from=to+alt;
       return{q:`ATC: "Cross ${fix} at ${N(fl(to))}." You're at ${N(fl(from))}, ${N(nm+' nm')} from ${fix}, groundspeed ${N(gs+' kt')}. What descent rate do you need?`,unit:'fpm',ans:vs,tol:100,
-        steps:[`${fmt(from)} − ${fmt(to)} = ${fmt(alt)} ft`,`${gs} ÷ 60 = ${npm} nm/min → ${nm} ÷ ${npm} = ${min} min`,`${fmt(alt)} ÷ ${min} = ${fmt(vs)} fpm`],say:'Altitude to lose, time to the fix, then divide.'};}
+        steps:[`${fmt(from)} − ${fmt(to)} = ${fmt(alt)} ft`,`${gs} ÷ 60 = ${npm} nm/min → ${nm} ÷ ${npm} = ${min} min`,...divSteps(alt,min)],say:'Altitude to lose, time to the fix, then divide.'};}
     return{q:pick([`You need to lose ${N(fmt(alt)+' ft')} in ${N(nm+' nm')} at ${N(gs+' kt')} groundspeed. What vertical speed?`,`${N(nm+' miles')} to go, ${N(fmt(alt)+' ft')} to lose, ${N(gs+' kt')} over the ground. Rate?`]),unit:'fpm',ans:vs,tol:100,
-      steps:[`${gs} ÷ 60 = ${npm} nm/min`,`${nm} ÷ ${npm} = ${min} min`,`${fmt(alt)} ÷ ${min} = ${fmt(vs)} fpm`],say:'Turn distance into minutes, then divide the altitude.'};}},
+      steps:[`${gs} ÷ 60 = ${npm} nm/min`,`${nm} ÷ ${npm} = ${min} min`,...divSteps(alt,min)],say:'Turn distance into minutes, then divide the altitude.'};}},
 
   wind:{label:'Time with wind',gen(){
     const dv=Math.random()<.35,head=Math.random()<.6,w=R(1,8)*10,gs=pick((dv?GS30:GS60).filter(g=>head?g+w<=540:g-w>=150)),tas=head?gs+w:gs-w,wn=`${w} kt ${head?'headwind':'tailwind'}`;
     if(dv){const m=pick(minsFor(gs,[2,3,4,5,6,8,10,12])),d=gs/60*m;
       return{q:pick([`TAS ${N(tas+' kt')}, ${N(wn)}. How far do you travel in ${N(m+' minutes')}?`,`At ${N(tas+' TAS')} into a ${N(wn)}, how many miles in ${N(m+' min')}?`].map(s=>head||!s.includes('into')?s:s.replace('into a','with a'))),
-        unit:'nm',ans:d,tol:0.5,steps:[`GS = ${tas} ${head?'−':'+'} ${w} = ${gs} kt`,`${gs} ÷ 60 = ${gs/60} nm/min`,`${gs/60} × ${m} = ${d} nm`],say:'Groundspeed, nm per minute, times the minutes.'};}
+        unit:'nm',ans:d,tol:0.5,steps:[`GS = ${tas} ${head?'−':'+'} ${w} = ${gs} kt`,`${gs} ÷ 60 = ${gs/60} nm/min`,...mulSteps(gs/60,m)],say:'Groundspeed, nm per minute, times the minutes.'};}
     const min=pick([4,5,6,8,10,12,15,20,30]),dist=gs/60*min;
     return{q:pick([`Travel ${N(dist+' nm')} at ${N(tas+' TAS')} with a ${N(wn)}. How many minutes?`,`How long to travel ${N(dist+' nm')} with ${N(tas+' TAS')} and a ${N(wn)}?`,`${N(dist+' nm')} to the fix. True airspeed ${N(tas+' kt')}, ${N(wn)}. Time en route?`]),
-      unit:'min',ans:min,tol:0.5,steps:[`GS = ${tas} ${head?'−':'+'} ${w} = ${gs} kt`,`${gs} ÷ 60 = ${gs/60} nm/min`,`${dist} ÷ ${gs/60} = ${min} min`],say:'Groundspeed first, then distance over groundspeed.'};}},
+      unit:'min',ans:min,tol:0.5,steps:[`GS = ${tas} ${head?'−':'+'} ${w} = ${gs} kt`,`${gs} ÷ 60 = ${gs/60} nm/min`,...divSteps(dist,gs/60)],say:'Groundspeed first, then distance over groundspeed.'};}},
 
   npm:{label:'GS to nm/min',gen(){
     const v=R(0,4);
     if(v===3){const n=pick([2,2.5,3,3.5,4,4.5,5,5.5,6,6.5,7,7.5,8,8.5,9]);
-      return{q:pick([`You're covering ${N(n+' nm')} every minute. What's your groundspeed?`,`${N(n+' miles a minute')} is what groundspeed?`]),unit:'kt',ans:n*60,tol:0,steps:[`${n} × 60 = ${n*60} kt`],say:'Miles per minute times 60.'};}
+      return{q:pick([`You're covering ${N(n+' nm')} every minute. What's your groundspeed?`,`${N(n+' miles a minute')} is what groundspeed?`]),unit:'kt',ans:n*60,tol:0,steps:mulSteps(n,60),say:'Miles per minute times 60.'};}
     if(v===4){const gs=R(4,16)*30,m=R(2,10),d=gs/60*m;
-      return{q:pick([`At ${N(gs+' kt')}, how far do you go in ${N(m+' minutes')}?`,`Groundspeed ${N(gs+' kt')}. Distance covered in ${N(m+' min')}?`]),unit:'nm',ans:d,tol:0.5,steps:[`${gs} ÷ 60 = ${gs/60} nm/min`,`${gs/60} × ${m} = ${d} nm`],say:'Miles per minute times minutes.'};}
+      return{q:pick([`At ${N(gs+' kt')}, how far do you go in ${N(m+' minutes')}?`,`Groundspeed ${N(gs+' kt')}. Distance covered in ${N(m+' min')}?`]),unit:'nm',ans:d,tol:0.5,steps:[...divSteps(gs,60),...mulSteps(gs/60,m)],say:'Miles per minute times minutes.'};}
     const table=v<3,gs=table?R(2,18)*30:pick([100,140,160,200,220,250,280,320,340,350,370,400,440,460,500]),n=gs/60,r=Math.round(n*10)/10,dz=gs/10;
     return{q:pick([`Groundspeed ${N(gs+' kt')}. How many nautical miles per minute?`,`${N(gs+' knots')} is how many miles a minute?`]),unit:'nm/min',ans:n,tol:table?0.05:0.1,
-      steps:table?[`Every 30 kt = 0.5 nm/min`,`${gs} ÷ 60 = ${n}`]:[`Drop a zero: ${dz} ÷ 6`,`${gs} ÷ 60 ≈ ${r}`],say:'Groundspeed divided by 60. Every 30 knots is half a mile a minute.'};}},
+      steps:table?[`Every 30 kt = 0.5 nm/min`,...divSteps(gs,60)]:divSteps(gs,60),say:'Groundspeed divided by 60. Every 30 knots is half a mile a minute.'};}},
 
   fuel:{label:'Fuel dump time',gen(){
     const rate=pick(DUMP),min=pick(DMIN),amt=rate*min,v=R(0,2);
     if(v===1){const mlw=pick([72000,75000,140000,160000,180000,250000]),gw=mlw+amt;
       return{q:`You're at ${N(fmt(gw)+' lb')} and max landing weight is ${N(fmt(mlw)+' lb')}. Dump rate ${N(fmt(rate)+' lb/min')}. How long until you can land?`,unit:'min',ans:min,tol:0.5,
-        steps:[`${fmt(gw)} − ${fmt(mlw)} = ${fmt(amt)} lb to dump`,`${fmt(amt)} ÷ ${fmt(rate)} = ${min} min`],say:'Find how much has to go, then divide by the rate.'};}
-    if(v===2)return{q:`Dumping at ${N(fmt(rate)+' lb/min')} for ${N(min+' minutes')}. How much fuel is gone?`,unit:'lb',ans:amt,tol:0,steps:[`${fmt(rate)} × ${min} = ${fmt(amt)} lb`],say:'Rate times time.'};
+        steps:[`${fmt(gw)} − ${fmt(mlw)} = ${fmt(amt)} lb to dump`,...divSteps(amt,rate)],say:'Find how much has to go, then divide by the rate.'};}
+    if(v===2)return{q:`Dumping at ${N(fmt(rate)+' lb/min')} for ${N(min+' minutes')}. How much fuel is gone?`,unit:'lb',ans:amt,tol:0,steps:mulSteps(rate,min),say:'Rate times time.'};
     return{q:pick([`Dumping fuel at ${N(fmt(rate)+' lb/min')}. How long to dump ${N(fmt(amt)+' lb')}?`,`How long to jettison ${N(fmt(amt)+' lb')} at ${N(fmt(rate)+' pounds a minute')}?`]),unit:'min',ans:min,tol:0.5,
-      steps:[`${fmt(amt)} ÷ ${fmt(rate)} = ${min} min`],say:'Drop common zeros first, then divide.'};}},
-  mult:{label:'Times table',gen(){return mNext();}}
+      steps:divSteps(amt,rate),say:'Drop matching zeros, then make the divisor round.'};}},
+  mult:{label:'Math skills',gen(){return mNext();}}
 };
 function mCat(a,b){const lo=Math.min(a,b),hi=Math.max(a,b);
   if(lo===1||hi===10)return'rule';if(lo===2||lo===5||hi===5)return'pat';if(lo===hi)return'sq';return'core';}
@@ -399,19 +473,19 @@ const SIMPLE={
     else{gs=pick([240,300,360,420,480]);m=pick([2,3,4,5,6]);alt=pick(VSR)*m;}
     const npm=gs/60,nm=npm*m,vs=alt/m;
     return{q:`Lose ${N(fmt(alt)+' ft')} in ${N(nm+' nm')} at ${N(gs+' kt')} groundspeed. What vertical speed?`,unit:'fpm',ans:vs,tol:e?0:Math.max(100,vs*0.05),
-      steps:[`${gs} ÷ 60 = ${npm} nm/min`,`${nm} ÷ ${npm} = ${m} min`,`${fmt(alt)} ÷ ${m} ≈ ${fmt(vs)} fpm`],say:'Turn distance into minutes, then divide the altitude.'};},
+      steps:[`${gs} ÷ 60 = ${npm} nm/min`,`${nm} ÷ ${npm} = ${m} min`,...divSteps(alt,m)],say:'Turn distance into minutes, then divide the altitude.'};},
   wind(e){let tas,w,head=Math.random()<.6;
     if(e){tas=pick([300,360,420,480]);w=pick([60,120]);if(!head&&tas+w>540)head=true;}
     else{w=R(1,8)*10;do{tas=R(18,48)*10}while((tas+(head?-w:w))%60);}
     const gs=head?tas-w:tas+w,npm=gs/60,m=e?pick([5,10,15,20]):(gs%60?pick([4,6,8,10,12,20]):R(3,20)),dist=npm*m;
     return{q:`Travel ${N(dist+' nm')} at ${N(tas+' TAS')} with a ${N(w+' kt '+(head?'headwind':'tailwind'))}. How many minutes?`,unit:'min',ans:m,tol:e?0:0.5,
-      steps:[`GS = ${tas} ${head?'−':'+'} ${w} = ${gs} kt`,`${gs} ÷ 60 = ${npm} nm/min`,`${dist} ÷ ${npm} = ${m} min`],say:'Groundspeed first, then distance over groundspeed.'};},
+      steps:[`GS = ${tas} ${head?'−':'+'} ${w} = ${gs} kt`,`${gs} ÷ 60 = ${npm} nm/min`,...divSteps(dist,npm)],say:'Groundspeed first, then distance over groundspeed.'};},
   npm(e){const gs=e?R(1,9)*60:R(2,18)*30,n=gs/60;
     return{q:`Groundspeed ${N(gs+' kt')}. How many nautical miles per minute?`,unit:'nm/min',ans:n,tol:0,
-      steps:[`${gs} ÷ 60 = ${n}`],say:'Groundspeed divided by 60. Every 30 knots is half a mile a minute.'};},
+      steps:divSteps(gs,60),say:'Groundspeed divided by 60. Every 30 knots is half a mile a minute.'};},
   fuel(e){const rate=e?pick([1000,2000]):pick(DUMP),min=e?R(2,10):pick(DMIN),amt=rate*min;
     return{q:`Dumping fuel at ${N(fmt(rate)+' lb/min')}. How long to dump ${N(fmt(amt)+' lb')}?`,unit:'min',ans:min,tol:0,
-      steps:[`${fmt(amt)} ÷ ${fmt(rate)} = ${min} min`],say:'Drop common zeros first, then divide.'};},
+      steps:divSteps(amt,rate),say:'Drop matching zeros, then make the divisor round.'};},
 };
 const LEVELS=['easy','medium','hard'];
 const MIXED=Object.keys(TYPES);
@@ -441,23 +515,13 @@ function wOf(key,boxw,neww){const it=items[key];if(!it)return neww;let w=boxw[it
 function wpick(keys,boxw=BOXW,neww=NEWW){const ws=keys.map(k=>wOf(k,boxw,neww)),tot=ws.reduce((a,b)=>a+b,0);let r=Math.random()*tot;for(let i=0;i<keys.length;i++){r-=ws[i];if(r<=0)return keys[i];}return keys[keys.length-1];}
 const pickSkill=()=>wpick(MIXED.map(k=>'s:'+k),SKW,SKNEW).slice(2);
 
-// Times table: 2-9 facts in three forms plus bridge problems that use the facts the way the descent math does
+// Math skills: 2-9 facts in three forms, plus technique problems (BRIDGE) that use the facts the way the aviation math does
 const FACTS=[];for(let a=2;a<=9;a++)for(let b=a;b<=9;b++)FACTS.push('m:'+a+'x'+b);
-const BRIDGE={
-  'm:x3':{label:'× 3',gen(){let n;do{n=R(12,49)}while(n%10===0);const t=n-n%10,u=n%10;
-    return{q:`<span class="n">${n} × 3</span> = ?`,ans:n*3,steps:[`${t} × 3 = ${t*3}`,`${u} × 3 = ${u*3}`,`${t*3} + ${u*3} = ${n*3}`],say:'Split into tens and ones. Same step as 3:1 descent planning.'};}},
-  'm:x5':{label:'× 5',gen(){let n;do{n=R(13,99)}while(n%10===0);
-    return{q:`<span class="n">${n} × 5</span> = ?`,ans:n*5,steps:[`${n} × 10 = ${n*10}`,`${n*10} ÷ 2 = ${n*5}`],say:'Times ten, then halve. Same step as the 3° descent rate.'};}},
-  'm:d6':{label:'÷ 6',gen(){let r;do{r=R(12,80)}while(r%10===0);const p=r*6,t=r-r%10;
-    return{q:`<span class="n">${p} ÷ 6</span> = ?`,ans:r,steps:[`${t*6} ÷ 6 = ${t}`,`${p-t*6} ÷ 6 = ${r-t}`,`${t} + ${r-t} = ${r}`],say:'Split into chunks you know. Same step as dividing groundspeed by 60.'};}},
-  'm:tens':{label:'× tens',gen(){const a=R(2,9),b=R(2,9)*10,flip=Math.random()<.5;
-    return{q:`<span class="n">${flip?b+' × '+a:a+' × '+b}</span> = ?`,ans:a*b,steps:[`${a} × ${b/10} = ${a*b/10}`,`Add the zero: ${a*b}`],say:'Multiply the single digits, then add the zero back.'};}}
-};
 const BKEYS=Object.keys(BRIDGE);
 let lastM='';
 function mNext(){let key;const due=FACTS.concat(BKEYS).filter(k=>items[k]&&items[k].box===0&&qn-items[k].lastQ>=3&&k!==lastM);
-  if(due.length&&Math.random()<.5)key=pick(due);else for(let i=0;i<10;i++){key=Math.random()<.7?wpick(FACTS):wpick(BKEYS);if(key!==lastM)break;}lastM=key;
-  if(BRIDGE[key]){const g=BRIDGE[key].gen();return Object.assign(g,{unit:'',tol:0,items:[key],target:15});}
+  if(due.length&&Math.random()<.5)key=pick(due);else for(let i=0;i<10;i++){key=Math.random()<.45?wpick(FACTS):wpick(BKEYS);if(key!==lastM)break;}lastM=key;
+  if(BRIDGE[key]){const g=BRIDGE[key].gen();return Object.assign(g,{unit:'',tol:g.tol||0,items:[key],target:15});}
   const [lo,hi]=key.slice(2).split('x').map(Number),swap=Math.random()<.5,a=swap?hi:lo,b=swap?lo:hi,p=a*b,it=items[key],strong=it&&it.box>=3;
   const r=Math.random(),form=r<(strong?.3:.6)?'fwd':r<(strong?.65:.8)?'rev':'div',tbl=mTable(a,b),hint=mHint(a,b);
   if(form==='rev'){const left=Math.random()<.5,known=left?b:a,miss=left?a:b;
@@ -475,7 +539,7 @@ function renderDash(){const lg=load('dmd-log')||{},hist=load('dmd-hist')||[],el=
   const skills=Object.keys(TYPES).map(k=>{const a=lg[k]||[],n=a.length,ok=a.filter(x=>x[0]).length,slow=a.filter(x=>x[0]&&x[1]>(k==='mult'?x[2]:Math.max(x[2],TARGET[k]))).length,avg=n?Math.round(a.reduce((s,x)=>s+x[1],0)/n):0,it=items['s:'+k];
     const acc=n?Math.round(ok/n*100):null,st=!n?'none':acc<75||slow/n>.4?'weak':acc>=90&&slow/n<=.2?'strong':'ok';return{k,n,acc,avg,st,all:it?it.n:0};});
   const answered=skills.reduce((s,x)=>s+x.all,0);
-  if(!answered){el.innerHTML=`<div class="dash-empty"><h3>Your progress</h3><p>Finish a few questions and this fills in with your accuracy per skill and a times table map of your weak spots.</p></div>`;return;}
+  if(!answered){el.innerHTML=`<div class="dash-empty"><h3>Your progress</h3><p>Finish a few questions and this fills in with your accuracy per skill, a times table map of your weak spots, and your mental-math techniques.</p></div>`;return;}
   const focus=skills.filter(x=>x.st==='weak').sort((a,b)=>a.acc-b.acc).slice(0,2).map(x=>TYPES[x.k].label);
   const chip={strong:'Strong',ok:'Okay',weak:'Needs work',none:'No data'};
   let h=`<h3>Your progress</h3><p class="dmeta">${answered} answers logged${hist.length?` · ${hist.length} session${hist.length>1?'s':''}`:''}${focus.length?` · Focus next: <b>${focus.join(', ')}</b>`:''}</p>`;
@@ -484,7 +548,7 @@ function renderDash(){const lg=load('dmd-log')||{},hist=load('dmd-hist')||[],el=
   for(let j=2;j<=9;j++)h+=`<div class="hd">${j}</div>`;
   for(let i=2;i<=9;i++){h+=`<div class="hd">${i}</div>`;for(let j=2;j<=9;j++){const lo=Math.min(i,j),hi=Math.max(i,j),k='m:'+lo+'x'+hi,s=mState(items[k]);h+=`<button type="button" class="c ${s}" data-k="${k}" aria-label="${i} times ${j}: ${STATE_LBL[s]}">${i*j}</button>`;}}
   h+=`</div><ul class="legend"><li><i class="miss"></i>Missed</li><li><i class="slow"></i>Slow or shaky</li><li><i class="good"></i>Solid</li><li><i class="none"></i>Not practiced</li></ul>`;
-  h+=`<div class="bridge">${BKEYS.map(k=>{const s=mState(items[k]);return`<button type="button" class="bchip ${s}" data-k="${k}">${BRIDGE[k].label}</button>`;}).join('')}</div><p class="cell-info" id="cellInfo" aria-live="polite">Tap a cell to see its history.</p></div>`;
+  h+=`<div class="lbl">Techniques</div><div class="bridge">${BKEYS.map(k=>{const s=mState(items[k]);return`<button type="button" class="bchip ${s}" data-k="${k}">${BRIDGE[k].label}</button>`;}).join('')}</div><p class="cell-info" id="cellInfo" aria-live="polite">Tap a cell to see its history.</p></div>`;
   if(hist.length)h+=`<div class="recent"><div class="lbl">Recent sessions</div><ol>${hist.slice(-5).reverse().map(x=>`<li><span>${new Date(x.t).toLocaleDateString(undefined,{month:'short',day:'numeric'})} · ${esc(x.label)}</span><b class="${x.pct>=75?'hi':x.pct>=50?'mid':'lo'}">${x.pct}%</b><em>${x.n} q · ${x.avg}s avg</em></li>`).join('')}</ol></div>`;
   h+=`<button type="button" class="btn ghost sm" id="resetBtn">Reset progress</button>`;
   el.innerHTML=h;
