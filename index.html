@@ -83,6 +83,17 @@ h2{font-size:1.7rem}
 .seg button[aria-checked="true"]{background:var(--magenta);color:#fff;font-weight:600}
 .seg.locked button{cursor:default}
 .seg.locked button[aria-checked="false"]{opacity:.45}
+.tzt-wrap{overflow-x:auto;margin-top:4px}
+.tzt{border-collapse:separate;border-spacing:5px;font-variant-numeric:tabular-nums}
+.tzt caption{text-align:left;font-size:.86rem;color:var(--muted);padding:0 5px 4px}
+.tzt th{font:600 .9rem var(--body);color:var(--ink);text-align:left;padding:0 10px 0 0}
+.tzt thead th{text-align:center;font-size:.85rem;padding:0 0 2px}
+.tzt thead small{display:block;font-weight:400;color:var(--muted);font-size:.75rem}
+.tzt td{width:5.6rem;text-align:center;border-radius:10px;padding:8px 4px;color:var(--ink)}
+.tzt td b{display:block;font:700 1.6rem/1.1 var(--mono)}
+.tzt td span{font:500 .75rem var(--mono);color:var(--muted)}
+.tzt .o4{background:var(--t-mir)} .tzt .o5{background:var(--t-pat)} .tzt .o6{background:var(--t-rule)} .tzt .o7{background:var(--t-sq)} .tzt .o8{background:var(--t-core)}
+.tzt td.hl{box-shadow:inset 0 0 0 3px var(--magenta)}
 .mult-note{margin:0;font-size:.88rem;color:var(--muted);max-width:52ch;flex-basis:100%}
 .dash{display:flex;flex-direction:column;gap:14px;width:100%;border-top:1px solid var(--rule);padding-top:16px;margin-top:6px}
 .dash h3{margin:0}
@@ -341,32 +352,28 @@ const TZS={E:{n:'Eastern',s:5},C:{n:'Central',s:6},M:{n:'Mountain',s:7},P:{n:'Pa
 const hh=m=>{m=((m%1440)+1440)%1440;return String(Math.floor(m/60)).padStart(2,'0')+String(m%60).padStart(2,'0');};
 const tzAb=(z,d)=>z+(d?'DT':'ST'),tzOff=(z,d)=>TZS[z].s-(d?1:0),tzFull=(z,d)=>`${TZS[z].n} ${d?'Daylight':'Standard'} Time`;
 const tzRule=(z,d)=>`${tzAb(z,d)} is UTC−${tzOff(z,d)}`;
-// memory hooks: winter count 5-6-7-8 east to west; summer is one hour closer to Zulu, so each zone takes its eastern neighbor's winter number
-function tzHook(z,d){const s=TZS[z].s;
-  if(!d)return`Memory hook: winter counts 5-6-7-8 going east to west, so ${TZS[z].n} is ${s}`;
-  if(z==='E')return`Memory hook: "Fourth of July", EDT is 4. Summer clocks spring forward, one hour closer to Zulu`;
-  const nb={C:'E',M:'C',P:'M'}[z];
-  return`Memory hook: in summer each zone takes its eastern neighbor's winter number. ${tzAb(z,1)} = ${tzAb(nb,0)} = ${s-1}`;}
 const dayNote=raw=>raw>=1440?' (next day)':raw<0?' (previous day)':'';
-const TZREF=`<p class="say">Winter (standard): count 5-6-7-8 east to west. EST 5 · CST 6 · MST 7 · PST 8 behind Zulu.<br>Summer (daylight): spring forward, one hour closer. EDT 4 ("Fourth of July") · CDT 5 = EST · MDT 6 = CST · PDT 7 = MST.<br>Local → Zulu: add. Zulu → local: subtract.</p>`;
+// Reference table: hours to add to local time to get Zulu. Same value = same color, so the summer column reads as the winter column shifted one zone east.
+function tzTable(hl){const on=(z,d)=>hl.some(([a,b])=>a===z&&!!b===!!d);
+  return`<div class="tzt-wrap"><table class="tzt"><caption>Add to local time to get Zulu. Subtract to go back.</caption><thead><tr><th></th><th>Standard<small>winter</small></th><th>Daylight<small>summer</small></th></tr></thead><tbody>${Object.keys(TZS).map(z=>`<tr><th scope="row">${TZS[z].n}</th>${[0,1].map(d=>{const o=tzOff(z,d);return`<td class="o${o}${on(z,d)?' hl':''}"><b>+${o}</b><span>${tzAb(z,d)}</span></td>`;}).join('')}</tr>`).join('')}</tbody></table></div>`;}
 function tzq(lvl){const easy=lvl==='easy',hard=lvl==='hard',zs=Object.keys(TZS),z=pick(zs),d=Math.random()<.5;
   const t=easy?R(0,23)*60:lvl==='medium'?R(0,95)*15:R(0,287)*5;
   const nm=(zz)=>hard&&Math.random()<.6?tzFull(zz,d):tzAb(zz,d);
-  const v=easy?R(0,1):hard?R(0,3):R(0,2),base={tol:0,time:true,extra:TZREF,say:'Winter 5-6-7-8 east to west. Summer is one less.'};
+  const v=easy?R(0,1):hard?R(0,3):R(0,2),base={tol:0,time:true,extra:tzTable([[z,d]]),say:'Local → Zulu: add. Zulu → local: subtract.'};
   if(v===0){const raw=t+tzOff(z,d)*60,a=hh(raw);
     return Object.assign(base,{q:pick([`${N(hh(t))} ${N(nm(z))} is what time in Zulu (UTC)?`,`It's ${N(hh(t))} ${N(nm(z))}. What time is it in Zulu?`]),unit:'Z',ans:+a,
-      steps:[tzHook(z,d),tzRule(z,d)+'. Local → Zulu: add',`${hh(t)} + ${tzOff(z,d)} h = ${a}Z${dayNote(raw)}`]});}
+      steps:[tzRule(z,d)+'. Local → Zulu: add',`${hh(t)} + ${tzOff(z,d)} h = ${a}Z${dayNote(raw)}`]});}
   if(v===1){const raw=t-tzOff(z,d)*60,a=hh(raw);
     return Object.assign(base,{q:pick([`${N(hh(t)+'Z')} is what time ${N(nm(z))}?`,`Your ETA is ${N(hh(t)+'Z')}. What's that in ${N(nm(z))}?`]),unit:tzAb(z,d),ans:+a,
-      steps:[tzHook(z,d),tzRule(z,d)+'. Zulu → local: subtract',`${hh(t)}Z − ${tzOff(z,d)} h = ${a} ${tzAb(z,d)}${dayNote(raw)}`]});}
-  const z2=pick(zs.filter(x=>x!==z)),diff=tzOff(z,d)-tzOff(z2,d),dir=diff>0?'ahead of':'behind';
+      steps:[tzRule(z,d)+'. Zulu → local: subtract',`${hh(t)}Z − ${tzOff(z,d)} h = ${a} ${tzAb(z,d)}${dayNote(raw)}`]});}
+  const z2=pick(zs.filter(x=>x!==z)),diff=tzOff(z,d)-tzOff(z2,d),dir=diff>0?'ahead of':'behind';base.extra=tzTable([[z,d],[z2,d]]);
   if(v===2){const raw=t+diff*60,a=hh(raw);
     return Object.assign(base,{q:`${N(hh(t))} ${N(nm(z))} is what time ${N(nm(z2))}?`,unit:tzAb(z2,d),ans:+a,
       steps:[`Both zones are on ${d?'daylight':'standard'} time, so only the zone gap matters: one hour per zone`,`${TZS[z2].n} is ${Math.abs(diff)} hour${Math.abs(diff)>1?'s':''} ${dir} ${TZS[z].n} (${tzAb(z,d)} ${tzOff(z,d)}, ${tzAb(z2,d)} ${tzOff(z2,d)})`,`${hh(t)} ${diff>0?'+':'−'} ${Math.abs(diff)} h = ${a}${dayNote(raw)}`]});}
   // flight: depart in one zone, land in another
   const dur=R(10,66)*5,dz=t+tzOff(z,d)*60,az=dz+dur,raw=az-tzOff(z2,d)*60,toZ=Math.random()<.35,a=toZ?hh(az):hh(raw),dh=Math.floor(dur/60),dm=String(dur%60).padStart(2,'0');
   return Object.assign(base,{q:`Departing at ${N(hh(t))} ${N(nm(z))}, flight time ${N(dh+'h '+dm+'m')}, landing in the ${TZS[z2].n} zone (${d?'daylight':'standard'} time). ${toZ?'Arrival time in Zulu?':'Local arrival time?'}`,unit:toZ?'Z':tzAb(z2,d),ans:+a,
-    steps:[`${tzAb(z,d)} is UTC−${tzOff(z,d)}, ${tzAb(z2,d)} is UTC−${tzOff(z2,d)}. ${d?'Summer: each zone takes its eastern neighbor\'s winter number':'Winter: 5-6-7-8 east to west'}`,`Departure in Zulu: ${hh(t)} + ${tzOff(z,d)} h = ${hh(dz)}Z`,`Add the flight: ${hh(dz)}Z + ${dh}:${dm} = ${hh(az)}Z${az>=1440&&dz<1440?' (next day in Zulu)':''}`,...(toZ?[]:[`To ${tzAb(z2,d)}: ${hh(az)}Z − ${tzOff(z2,d)} h = ${hh(raw)} local${raw>=1440?' (next day)':''}`])],
+    steps:[`${tzAb(z,d)} is UTC−${tzOff(z,d)}, ${tzAb(z2,d)} is UTC−${tzOff(z2,d)}`,`Departure in Zulu: ${hh(t)} + ${tzOff(z,d)} h = ${hh(dz)}Z`,`Add the flight: ${hh(dz)}Z + ${dh}:${dm} = ${hh(az)}Z${az>=1440&&dz<1440?' (next day in Zulu)':''}`,...(toZ?[]:[`To ${tzAb(z2,d)}: ${hh(az)}Z − ${tzOff(z2,d)} h = ${hh(raw)} local${raw>=1440?' (next day)':''}`])],
     say:'Convert to Zulu, add the flight time, convert to the destination.'});}
 // Time math: add and subtract hours and minutes. Durations are answered as h:mm (type 415 or 4.15 for 4:15), clock times as 24-hour.
 const hm=m=>`${Math.floor(m/60)}:${String(m%60).padStart(2,'0')}`,hmw=m=>{const h=Math.floor(m/60),mm=m%60;return h&&mm?`${h}h ${mm}m`:h?`${h}h`:`${mm}m`;},enc=m=>Math.floor(m/60)*100+m%60;
