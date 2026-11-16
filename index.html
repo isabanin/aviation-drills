@@ -368,6 +368,38 @@ function tzq(lvl){const easy=lvl==='easy',hard=lvl==='hard',zs=Object.keys(TZS),
   return Object.assign(base,{q:`Departing at ${N(hh(t))} ${N(nm(z))}, flight time ${N(dh+'h '+dm+'m')}, landing in the ${TZS[z2].n} zone (${d?'daylight':'standard'} time). ${toZ?'Arrival time in Zulu?':'Local arrival time?'}`,unit:toZ?'Z':tzAb(z2,d),ans:+a,
     steps:[`${tzAb(z,d)} is UTC−${tzOff(z,d)}, ${tzAb(z2,d)} is UTC−${tzOff(z2,d)}. ${d?'Summer: each zone takes its eastern neighbor\'s winter number':'Winter: 5-6-7-8 east to west'}`,`Departure in Zulu: ${hh(t)} + ${tzOff(z,d)} h = ${hh(dz)}Z`,`Add the flight: ${hh(dz)}Z + ${dh}:${dm} = ${hh(az)}Z${az>=1440&&dz<1440?' (next day in Zulu)':''}`,...(toZ?[]:[`To ${tzAb(z2,d)}: ${hh(az)}Z − ${tzOff(z2,d)} h = ${hh(raw)} local${raw>=1440?' (next day)':''}`])],
     say:'Convert to Zulu, add the flight time, convert to the destination.'});}
+// Time math: add and subtract hours and minutes. Durations are answered as h:mm (type 415 or 4.15 for 4:15), clock times as 24-hour.
+const hm=m=>`${Math.floor(m/60)}:${String(m%60).padStart(2,'0')}`,hmw=m=>{const h=Math.floor(m/60),mm=m%60;return h&&mm?`${h}h ${mm}m`:h?`${h}h`:`${mm}m`;},enc=m=>Math.floor(m/60)*100+m%60;
+const TMREF=`<p class="say">Add: hours with hours, minutes with minutes, then trade 60 minutes for 1 hour.<br>Subtract: count up from the smaller time to the next whole hour, then the hours, then the leftover minutes.<br>Decimal hours: 0.1 h = 6 min · .25 = 15 · .5 = 30 · .75 = 45.</p>`;
+function addSteps(a,b){const h=Math.floor(a/60)+Math.floor(b/60),m=a%60+b%60,out=[`Hours: ${Math.floor(a/60)} + ${Math.floor(b/60)} = ${h}. Minutes: ${a%60} + ${b%60} = ${m}`];
+  if(m>=60){const need=60-a%60;out.push(need>0&&need<b%60?`Make an hour: ${a%60} needs ${need} more to reach 60, leaving ${b%60-need} → ${m} min = 1h ${m-60}m`:`${m} min = 1h ${m-60}m`);out.push(`${h} + 1 = ${h+1} hours and ${m-60} minutes → ${hm(a+b)}`);}
+  else out.push(`→ ${hm(a+b)}`);return out;}
+function countUp(a,b,clock){const f=clock?hh:hm,out=[];let cur=a,parts=[];const toHr=(60-a%60)%60;
+  if(toHr&&a+toHr<=b){out.push(`Count up to the whole hour: ${f(a)} → ${f(a+toHr)} is ${toHr} min`);cur=a+toHr;parts.push(toHr);}
+  const hrs=Math.floor((b-cur)/60);if(hrs){out.push(`${f(cur)} → ${f(cur+hrs*60)} is ${hrs} h`);cur+=hrs*60;parts.push(hrs*60);}
+  const rest=b-cur;if(rest){out.push(`${f(cur)} → ${f(b)} is ${rest} min`);parts.push(rest);}
+  out.push(`Total: ${parts.map(hmw).join(' + ')} = ${hm(b-a)}`);return out;}
+function tm(lvl){const easy=lvl==='easy',hard=lvl==='hard',st=easy?30:hard?1:5,dur=(lo,hi)=>R(Math.ceil(lo/st),Math.floor(hi/st))*st;
+  const v=easy?R(0,1):hard?R(0,6):R(0,3),D={tol:0,dur:true,unit:'h:mm',extra:TMREF},C={tol:0,time:true,extra:TMREF};
+  if(v===0){const a=dur(30,300),b=dur(15,240);
+    return Object.assign(D,{q:hard?pick([`Leg one was ${N(hmw(a))}, leg two ${N(hmw(b))}. Total flight time?`,`You've logged ${N(hm(a))} today and the next leg is ${N(hm(b))}. Total?`]):`${N(hm(a))} + ${N(hm(b))} = ?`,ans:enc(a+b),steps:addSteps(a,b),say:'Hours with hours, minutes with minutes, then trade 60 minutes for an hour.'});}
+  if(v===1){const t=easy?R(0,23)*60:R(0,1439/st|0)*st,e=dur(30,330),hardWrap=hard&&Math.random()<.3,t2=hardWrap?R(19,23)*60+R(0,11)*5:t,raw=t2+e;
+    return Object.assign(C,{q:hard?pick([`Off the gate at ${N(hh(t2))}, ${N(hmw(e))} en route. Estimated arrival?`,`Departure ${N(hh(t2)+'Z')}, flight time ${N(hm(e))}. ETA in Zulu?`]):`Depart ${N(hh(t2))}, ${N(hmw(e))} en route. Arrival time?`,unit:'',ans:+hh(raw),
+      steps:[...addSteps(t2,e).slice(0,-1),raw>=1440?`${hm(raw)} is past midnight: subtract 24 hours → ${hh(raw)} (next day)`:`${hh(t2)} + ${hm(e)} = ${hh(raw)}`],say:'Add the hours, add the minutes, carry 60 minutes into an hour.'});}
+  if(v===2){const a=hard&&Math.random()<.3?R(20,23)*60+R(0,11)*5:R(5,15)*60+R(0,59/st|0)*st,len=dur(40,420),b=a+len;
+    return Object.assign(D,{q:hard?pick([`Out ${N(hh(a))}, in ${N(hh(b))}. Block time?`,`Duty started ${N(hh(a)+'Z')} and you blocked in at ${N(hh(b)+'Z')}. How long was that?`]):`Off block ${N(hh(a))}, on block ${N(hh(b))}. Block time?`,ans:enc(len),
+      steps:[...(b>=1440?[`Crosses midnight: think of ${hh(b)} as ${hm(b)} on the 24-hour clock`]:[]),...countUp(a,b,true)],say:'Count up from the earlier time: to the whole hour, then hours, then minutes.'});}
+  if(v===3){const lim=pick(easy?[480,600]:[480,540,600,660,720,780,840]),used=dur(60,lim-20);
+    return Object.assign(D,{q:hard?pick([`Duty limit ${N(hmw(lim))}. You've used ${N(hm(used))}. How much is left?`,`Max ${N(hmw(lim))} on duty, ${N(hmw(used))} gone. Time remaining?`]):`${N(hm(lim))} − ${N(hm(used))} = ?`,ans:enc(lim-used),steps:countUp(used,lim,false),say:'Count up from what you used to the limit.'});}
+  if(v===4){const legs=[dur(30,180),dur(30,180),dur(20,150)],tot=legs.reduce((x,y)=>x+y,0),m=legs.reduce((x,y)=>x+y%60,0),h=legs.reduce((x,y)=>x+Math.floor(y/60),0);
+    return Object.assign(D,{q:`Three legs today: ${legs.map(x=>N(hm(x))).join(', ')}. Total block time?`,ans:enc(tot),
+      steps:[`Hours: ${legs.map(x=>Math.floor(x/60)).join(' + ')} = ${h}`,`Minutes: ${legs.map(x=>x%60).join(' + ')} = ${m} = ${hmw(m)}`,`${h}h + ${hmw(m)} = ${hm(tot)}`],say:'Add all the hours, add all the minutes, then convert minutes to hours.'});}
+  if(v===5){const tenths=R(5,95),m=tenths*6,hrs=tenths/10;
+    return Object.assign(D,{q:pick([`Your logbook shows ${N(hrs.toFixed(1)+' hours')}. What's that in hours and minutes?`,`${N(hrs.toFixed(1)+' hrs')} decimal is how many h:mm?`]),ans:enc(m),
+      steps:[`Each tenth of an hour is 6 minutes`,`${hrs.toFixed(1)} = ${Math.floor(hrs)} h and ${tenths%10} tenths`,`${tenths%10} × 6 = ${(tenths%10)*6} min → ${hm(m)}`],say:'Tenths times 6 gives minutes.'});}
+  let q4;do{q4=R(1,39)}while(q4%4===0);const m=q4*15,dec=m/60;
+  return{q:pick([`Convert ${N(hm(m))} to decimal hours for the logbook.`,`${N(hm(m))} is how many hours in decimal?`]),unit:'hours',ans:dec,tol:0.01,extra:TMREF,
+    steps:[`${m%60} minutes ÷ 60: 15 → .25, 30 → .5, 45 → .75`,`${hm(m)} = ${dec} hours`],say:'Quarter hours: 15 = .25, 30 = .5, 45 = .75.'};}
 const TYPES={
   desc:{label:'3:1 distance',gen(){
     const fix=pick(FIX),v=R(0,5);
@@ -533,6 +565,7 @@ const TYPES={
       unit:'fpm',ans:fpm,tol:50,steps:[`${gs} ÷ 60 = ${npm} nm/min`,`Feet per nm × nm per minute: ${g} × ${npm}`,...mulSteps(g,npm)],say:'Gradient times nm per minute. Same as GS ÷ 60, then multiply.'};}},
   xwind:{label:'Crosswind',gen(){return xwind('hard');}},
   tz:{label:'Time zones',gen(){return tzq('hard');}},
+  tmath:{label:'Time math',gen(){return tm('hard');}},
   mult:{label:'Math skills',gen(){return mNext();}}
 };
 function mCat(a,b){const lo=Math.min(a,b),hi=Math.max(a,b);
@@ -587,13 +620,14 @@ const SIMPLE={
       steps:[`Extra fuel: ${fmt(fob)} − ${fmt(mn)} = ${fmt(fob-mn)} lb`,`Burn per minute: ${fmt(ph)} ÷ 60 = ${pm} lb/min`,`Minutes: ${fmt(fob-mn)} ÷ ${pm}`,...divSteps(fob-mn,pm)],say:'Fuel above minimum, divided by burn per minute.'};},
   xwind(e){return xwind(e?'easy':'medium');},
   tz(e){return tzq(e?'easy':'medium');},
+  tmath(e){return tm(e?'easy':'medium');},
   climb(e){const g=e?pick([200,300,400,500]):pick([200,250,300,350,400,450,500,600]),gs=e?pick([120,180,240,300]):R(4,10)*30,npm=gs/60,fpm=g*npm;
     return{q:`SID requires ${N(g+' ft/nm')}. Groundspeed ${N(gs+' kt')}. Minimum climb rate?`,unit:'fpm',ans:fpm,tol:e?0:50,
       steps:[`${gs} ÷ 60 = ${npm} nm/min`,`Feet per nm × nm per minute: ${g} × ${npm}`,...mulSteps(g,npm)],say:'Gradient times nm per minute.'};},
 };
 const LEVELS=['easy','medium','hard'];
 const MIXED=Object.keys(TYPES);
-const fa=c=>{const n=c.ans;if(c.time)return String(n).padStart(4,'0');if(c.unit==='nm/min')return(+n.toFixed(2)).toString();if(Math.abs(n)>=1000)return fmt(n);return(+n.toFixed(1)).toString();};
+const fa=c=>{const n=c.ans;if(c.time)return String(n).padStart(4,'0');if(c.dur)return Math.floor(n/100)+':'+String(n%100).padStart(2,'0');if(c.unit==='nm/min')return(+n.toFixed(2)).toString();if(Math.abs(n)>=1000)return fmt(n);return(+n.toFixed(1)).toString();};
 
 let mode='all',lvl='hard',cur=null,start=0,tick=null,answered=false,hiddenAt=0;
 const $=id=>document.getElementById(id);
@@ -605,7 +639,7 @@ const esc=t=>String(t).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',
 // Low boxes get picked far more often. Items: times table facts (m:7x8), bridge kinds (m:x3...), and skills (s:desc...).
 const BOXW=[10,6,3.5,2,1.2,0.7],NEWW=4,SKW=[3,2.2,1.6,1.2,1,.8],SKNEW=1.5;
 // Seconds before a correct answer counts as slow. Multi-step problems get interview-style thinking time; memorized facts stay quick.
-const TARGET={desc:30,slow:45,rate:15,vsreq:60,wind:45,npm:10,fuel:30,hold:60,climb:20,xwind:20,tz:20,mult:4};
+const TARGET={desc:30,slow:45,rate:15,vsreq:60,wind:45,npm:10,fuel:30,hold:60,climb:20,xwind:20,tz:20,tmath:20,mult:4};
 let items=load('dmd-items')||{},qn=load('dmd-qn')||0;
 if(!load('dmd-tv2')){Object.keys(items).forEach(k=>{const it=items[k];if(k.startsWith('s:')&&it.lastSlow){it.lastSlow=false;if(it.lastOk&&it.box<2)it.box=2;}});store('dmd-items',items);store('dmd-tv2',1);}
 (()=>{const old=load('dmd-miss');if(Array.isArray(old)){old.forEach(k=>{if(/^[2-9]x[2-9]$/.test(k)&&!items['m:'+k])items['m:'+k]={n:1,ok:0,slow:0,box:0,sec:0,lastQ:0,lastSlow:false,lastOk:false};});store('dmd-items',items);store('dmd-miss',null);}})();
@@ -696,8 +730,8 @@ function celebrate(sec){advancing=true;const b=$('checkBtn'),q=$('question'),tg=
     $('sRight').animate([{transform:'scale(1)'},{transform:'scale(1.5)',color:cols[1]},{transform:'scale(1)'}],{duration:500,easing:'ease-out'});}
   setTimeout(()=>{b.classList.remove('ok');b.textContent='Check';q.classList.remove('done');advancing=false;next();},reduce?600:950);}
 
-$('form').addEventListener('submit',e=>{e.preventDefault();if(!cur||advancing||!ses)return;const v=parseFloat($('answer').value.replace(/[,:]/g,''));if(isNaN(v))return;
-  const ok=cur.time?v%2400===cur.ans:Math.abs(v-cur.ans)<=cur.tol,sec=answered?elapsed():record(ok);
+$('form').addEventListener('submit',e=>{e.preventDefault();if(!cur||advancing||!ses)return;const raw=$('answer').value.trim(),v=parseFloat((cur.time||cur.dur?raw.replace(/[.:]/g,''):raw).replace(/[,:]/g,''));if(isNaN(v))return;
+  const ok=cur.time?v%2400===cur.ans:cur.dur?v===cur.ans:Math.abs(v-cur.ans)<=cur.tol,sec=answered?elapsed():record(ok);
   if(ok)celebrate(sec);else show('bad',`Answer is ${fa(cur)}${cur.unit?' '+cur.unit:''}`);});
 $('revealBtn').onclick=()=>{if(!cur||advancing||!ses)return;record(false);show('reveal',`Answer: ${fa(cur)}${cur.unit?' '+cur.unit:''}`);};
 const goNext=()=>{if(advancing||!ses)return;if(!answered)record(false,true);next();};
