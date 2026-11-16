@@ -263,6 +263,7 @@ function mulSteps(a,b){
   if(!Number.isInteger(a)||!Number.isInteger(b)){const h=Number.isInteger(a)?b:a,n=h===a?b:a,w=Math.floor(h);
     return[`Split ${fm(h)} into ${w} + ½: ${w} × ${fm(n)} = ${fm(w*n)}, and half of ${fm(n)} is ${fm(n/2)}`,`${fm(w*n)} + ${fm(n/2)} = ${fm(h*n)}`];}
   const za=tz(a),zb=tz(b),x=a/10**za,y=b/10**zb,z=za+zb,out=[];
+  if(z&&Math.max(x,y)<=12&&Math.min(x,y)<=9)return[`Set the zeros aside: ${fm(x)} × ${fm(y)} = ${fm(x*y)}, then put ${zs(z)} back → ${fm(a*b)}`];
   if(z&&(x>1||y>1))out.push(`Set the zeros aside: ${fm(x)} × ${fm(y)}, then put ${zs(z)} back`);
   out.push(...mulCore(x,y));
   if(z)out.push(`Put ${zs(z)} back: ${fm(x*y)} → ${fm(a*b)}`);
@@ -437,6 +438,47 @@ const TYPES={
     if(v===2)return{q:`Dumping at ${N(fmt(rate)+' lb/min')} for ${N(min+' minutes')}. How much fuel is gone?`,unit:'lb',ans:amt,tol:0,steps:mulSteps(rate,min),say:'Rate times time.'};
     return{q:pick([`Dumping fuel at ${N(fmt(rate)+' lb/min')}. How long to dump ${N(fmt(amt)+' lb')}?`,`How long to jettison ${N(fmt(amt)+' lb')} at ${N(fmt(rate)+' pounds a minute')}?`]),unit:'min',ans:min,tol:0.5,
       steps:divSteps(amt,rate),say:'Drop matching zeros, then make the divisor round.'};}},
+  hold:{label:'Fuel & holding',gen(){
+    const v=R(0,5),pm=pick([40,50,60,70,80,100]),ph=pm*60,mn=pick([4500,5000,6000,6500]),lb=x=>N(fmt(x)+' lb'),perMin=[`Burn per minute: ${fmt(ph)} ÷ 60`,...divSteps(ph,60).filter(s=>!s.startsWith('So '))];
+    if(v===0){const m=pick([10,15,20,25,30,40,45,60]),fob=mn+pm*m;
+      return{q:pick([`Fuel on board ${lb(fob)}, minimum landing fuel ${lb(mn)}. Burning ${N(fmt(ph)+' lb/hr')}. How many minutes can you hold?`,
+        `Captain asks how much holding time you have. FOB ${lb(fob)}, you won't land with less than ${lb(mn)}, and you're burning ${N(fmt(ph)+' lb/hr')}. Answer in minutes.`]),
+        unit:'min',ans:m,tol:1,steps:[`Extra fuel: ${fmt(fob)} − ${fmt(mn)} = ${fmt(fob-mn)} lb`,...perMin,`Minutes: ${fmt(fob-mn)} ÷ ${pm}`,...divSteps(fob-mn,pm)],
+        say:'Fuel above minimum, divided by burn per minute.'};}
+    if(v===1){const m=pick([10,15,20,25,30,40]),fob=mn+pm*m+pick([500,1000,1500,2000]),left=fob-pm*m;
+      return{q:pick([`EFC in ${N(m+' minutes')}. FOB ${lb(fob)}, burning ${N(fmt(ph)+' lb/hr')}. How much fuel will you have at the EFC?`,
+        `You're told to expect further clearance in ${N(m+' min')}. You have ${lb(fob)} and burn ${N(fmt(ph)+' lb/hr')}. Fuel remaining at the EFC?`]),
+        unit:'lb',ans:left,tol:100,steps:[...perMin,`Fuel used: ${pm} × ${m}`,...mulSteps(pm,m),`${fmt(fob)} − ${fmt(pm*m)} = ${fmt(left)} lb`],
+        say:'Burn per minute times the wait, then subtract from what you have.'};}
+    if(v===2){const gs=pick([240,300,360,420]),t=pick([10,15,20,30]),d=gs/60*t,h=pick([10,15,20,25,30]),res=pick([4500,5000,6000]),dv=pm*t,fob=res+dv+pm*h;
+      return{q:pick([`Holding with ${lb(fob)} on board, burning ${N(fmt(ph)+' lb/hr')}. Your alternate is ${N(d+' nm')} away at ${N(gs+' kt')} groundspeed, and you need ${lb(res)} when you land there. How many minutes can you hold before you have to divert?`,
+        `Bingo fuel question: alternate ${N(d+' nm')} at ${N(gs+' kt')}, land there with at least ${lb(res)}. Burn ${N(fmt(ph)+' lb/hr')}, FOB ${lb(fob)}. Holding time available?`]),
+        unit:'min',ans:h,tol:1,steps:[...perMin,`Time to alternate: ${gs} ÷ 60 = ${gs/60} nm/min, so ${d} ÷ ${gs/60} = ${t} min`,`Divert fuel: ${pm} × ${t} = ${fmt(dv)} lb`,`Bingo: ${fmt(dv)} + ${fmt(res)} = ${fmt(dv+res)} lb`,`Extra: ${fmt(fob)} − ${fmt(dv+res)} = ${fmt(pm*h)} lb`,`Holding time: ${fmt(pm*h)} ÷ ${pm}`,...divSteps(pm*h,pm)],
+        say:'Bingo = divert fuel + fuel needed at the alternate. Hold on whatever is above bingo.'};}
+    if(v===3){if(Math.random()<.5)return{q:pick([`Burning ${N(fmt(ph)+' lb/hr')}. How much is that per minute?`,`${N(fmt(ph)+' lb per hour')} is how many pounds per minute?`]),unit:'lb/min',ans:pm,tol:0,steps:divSteps(ph,60),say:'Per hour divided by 60: drop a zero, divide by 6.'};
+      return{q:`Burning ${N(pm+' lb/min')}. What's that per hour?`,unit:'lb/hr',ans:ph,tol:0,steps:mulSteps(pm,60),say:'Per minute times 60.'};}
+    if(v===4){const hi=Math.random()<.5,pt=hi?5:4,k=R(2,6),efc=pt*k,alt=hi?pick([15000,16000,17000,18000]):pick([6000,8000,10000,12000,14000]);
+      return{q:pick([`Holding at ${N(fl(alt))}, no wind, standard pattern. EFC in ${N(efc+' minutes')}. How many full patterns will you fly?`,`Standard hold at ${N(fl(alt))}. Expect further clearance in ${N(efc+' min')}. How many laps?`]),
+        unit:'patterns',ans:k,tol:0,steps:[`${hi?'Above':'At or below'} 14,000 ft the inbound leg is ${hi?'1.5 minutes':'1 minute'}`,`Two 1-minute turns + ${hi?'3':'2'} minutes of legs = ${pt} minutes per pattern`,`${efc} ÷ ${pt} = ${k} patterns`],
+        say:'Pattern time is about 4 minutes at or below 14,000 ft and about 5 above.'};}
+    const m=pick([10,15,20,30,45]),used=pm*m;
+    return{q:pick([`Holding for ${N(m+' minutes')} at ${N(fmt(ph)+' lb/hr')}. How much fuel does that cost?`,`How much fuel do you burn in a ${N(m+'-minute')} hold at ${N(fmt(ph)+' lb/hr')}?`]),
+      unit:'lb',ans:used,tol:50,steps:[...perMin,...mulSteps(pm,m)],say:'Convert to per minute, then multiply by the minutes.'};}},
+
+  climb:{label:'Climb gradient',gen(){
+    const v=R(0,3);
+    if(v===1){const gs=pick([120,180,240,300]),npm=gs/60,g=pick([200,250,300,350,400,450,500,600]),fpm=g*npm;
+      return{q:pick([`You can hold ${N(fmt(fpm)+' fpm')} at ${N(gs+' kt')} groundspeed. What climb gradient is that?`,`Climbing ${N(fmt(fpm)+' fpm')} at ${N(gs+' kt')}. How many feet per nm?`]),
+        unit:'ft/nm',ans:g,tol:10,steps:[`${gs} ÷ 60 = ${npm} nm/min`,`Feet per minute ÷ nm per minute: ${fmt(fpm)} ÷ ${npm}`,...divSteps(fpm,npm)],say:'Gradient = climb rate ÷ nm per minute.'};}
+    if(v===2){const p=pick([2,3,4,5,6,8]),gs=R(12,30)*10,fpm=p*gs,exact=Math.round(p/100*6076*gs/60);
+      return{q:pick([`The SID requires a ${N(p+'%')} climb gradient. Groundspeed ${N(gs+' kt')}. Roughly what climb rate?`,`Chart shows ${N(p+'%')} climb gradient. At ${N(gs+' kt')}, approximate fpm?`]),
+        unit:'fpm',ans:fpm,tol:Math.round(fpm*.05),steps:[`Shortcut: fpm ≈ gradient % × groundspeed`,...mulSteps(p,gs),`Exact is ${fmt(exact)} fpm, close enough`],say:'Percent gradient times groundspeed gives fpm.'};}
+    if(v===3){const g=pick([200,250,300,400,500]),nm=pick([4,5,6,8,10,12]),from=pick([0,500,1000,1500]),to=from+g*nm;
+      return{q:pick([`Cross a fix ${N(nm+' nm')} from the departure end at or above ${N(fmt(to)+' ft')}. Field elevation ${N(fmt(from)+' ft')}. What gradient do you need?`,`You need to climb from ${N(fmt(from)+' ft')} to ${N(fmt(to)+' ft')} within ${N(nm+' nm')}. Required gradient?`]),
+        unit:'ft/nm',ans:g,tol:10,steps:[`Climb needed: ${fmt(to)} − ${fmt(from)} = ${fmt(to-from)} ft`,`Feet ÷ miles: ${fmt(to-from)} ÷ ${nm}`,...divSteps(to-from,nm)],say:'Feet to climb divided by the distance.'};}
+    const g=pick([200,250,300,350,400,450,500,600]),gs=R(4,10)*30,npm=gs/60,fpm=g*npm;
+    return{q:pick([`SID requires ${N(g+' ft/nm')}. Groundspeed ${N(gs+' kt')}. Minimum climb rate?`,`Climb gradient ${N(g+' feet per nm')} at ${N(gs+' kt')}. What fpm do you need?`,`Walk me through it: ${N(g+' ft/nm')} required, ${N(gs+' kt')} over the ground. Rate?`]),
+      unit:'fpm',ans:fpm,tol:50,steps:[`${gs} ÷ 60 = ${npm} nm/min`,`Feet per nm × nm per minute: ${g} × ${npm}`,...mulSteps(g,npm)],say:'Gradient times nm per minute. Same as GS ÷ 60, then multiply.'};}},
   mult:{label:'Math skills',gen(){return mNext();}}
 };
 function mCat(a,b){const lo=Math.min(a,b),hi=Math.max(a,b);
@@ -486,6 +528,12 @@ const SIMPLE={
   fuel(e){const rate=e?pick([1000,2000]):pick(DUMP),min=e?R(2,10):pick(DMIN),amt=rate*min;
     return{q:`Dumping fuel at ${N(fmt(rate)+' lb/min')}. How long to dump ${N(fmt(amt)+' lb')}?`,unit:'min',ans:min,tol:0,
       steps:divSteps(amt,rate),say:'Drop matching zeros, then make the divisor round.'};},
+  hold(e){const pm=e?pick([50,100]):pick([40,50,60,70,80,100]),ph=pm*60,m=e?pick([10,20,30,60]):pick([10,15,20,25,30,40,45]),mn=e?5000:pick([4500,5000,6000]),fob=mn+pm*m;
+    return{q:`Fuel on board ${N(fmt(fob)+' lb')}, minimum landing fuel ${N(fmt(mn)+' lb')}. Burning ${N(fmt(ph)+' lb/hr')}. How many minutes can you hold?`,unit:'min',ans:m,tol:e?0:1,
+      steps:[`Extra fuel: ${fmt(fob)} − ${fmt(mn)} = ${fmt(fob-mn)} lb`,`Burn per minute: ${fmt(ph)} ÷ 60 = ${pm} lb/min`,`Minutes: ${fmt(fob-mn)} ÷ ${pm}`,...divSteps(fob-mn,pm)],say:'Fuel above minimum, divided by burn per minute.'};},
+  climb(e){const g=e?pick([200,300,400,500]):pick([200,250,300,350,400,450,500,600]),gs=e?pick([120,180,240,300]):R(4,10)*30,npm=gs/60,fpm=g*npm;
+    return{q:`SID requires ${N(g+' ft/nm')}. Groundspeed ${N(gs+' kt')}. Minimum climb rate?`,unit:'fpm',ans:fpm,tol:e?0:50,
+      steps:[`${gs} ÷ 60 = ${npm} nm/min`,`Feet per nm × nm per minute: ${g} × ${npm}`,...mulSteps(g,npm)],say:'Gradient times nm per minute.'};},
 };
 const LEVELS=['easy','medium','hard'];
 const MIXED=Object.keys(TYPES);
@@ -501,7 +549,7 @@ const esc=t=>String(t).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',
 // Low boxes get picked far more often. Items: times table facts (m:7x8), bridge kinds (m:x3...), and skills (s:desc...).
 const BOXW=[10,6,3.5,2,1.2,0.7],NEWW=4,SKW=[3,2.2,1.6,1.2,1,.8],SKNEW=1.5;
 // Seconds before a correct answer counts as slow. Multi-step problems get interview-style thinking time; memorized facts stay quick.
-const TARGET={desc:30,slow:45,rate:15,vsreq:60,wind:45,npm:10,fuel:30,mult:4};
+const TARGET={desc:30,slow:45,rate:15,vsreq:60,wind:45,npm:10,fuel:30,hold:60,climb:20,mult:4};
 let items=load('dmd-items')||{},qn=load('dmd-qn')||0;
 if(!load('dmd-tv2')){Object.keys(items).forEach(k=>{const it=items[k];if(k.startsWith('s:')&&it.lastSlow){it.lastSlow=false;if(it.lastOk&&it.box<2)it.box=2;}});store('dmd-items',items);store('dmd-tv2',1);}
 (()=>{const old=load('dmd-miss');if(Array.isArray(old)){old.forEach(k=>{if(/^[2-9]x[2-9]$/.test(k)&&!items['m:'+k])items['m:'+k]={n:1,ok:0,slow:0,box:0,sec:0,lastQ:0,lastSlow:false,lastOk:false};});store('dmd-items',items);store('dmd-miss',null);}})();
