@@ -336,6 +336,34 @@ function xwind(lvl){const easy=lvl==='easy',med=lvl==='medium',hard=!easy&&!med;
   return{q,unit:'kt',ans:est,tol:Math.max(3,Math.round(use*.12)),steps,
     extra:`<p class="say">Crosswind by angle: 10° ⅙ · 20° ⅓ · 30° ½ · 40° ⅔ · 45° 70% · 50° ¾ · 60° 90% · 70°+ nearly all.<br>Headwind: use the fraction for 90° minus the angle.</p>`,
     say:'30°, 45°, 60° off is 50%, 70%, 90% of the wind. Headwind is the mirror.'};}
+// Time zones: US zones and UTC (Zulu), standard and daylight time. Answers are 24-hour times like 1830.
+const TZS={E:{n:'Eastern',s:5,c:['Newark','New York','Boston','Atlanta','Washington']},C:{n:'Central',s:6,c:['Chicago','Houston','Dallas','Minneapolis']},
+  M:{n:'Mountain',s:7,c:['Denver','Salt Lake City','Albuquerque','Boise']},P:{n:'Pacific',s:8,c:['San Francisco','Los Angeles','Seattle','Las Vegas']}};
+const hh=m=>{m=((m%1440)+1440)%1440;return String(Math.floor(m/60)).padStart(2,'0')+String(m%60).padStart(2,'0');};
+const tzAb=(z,d)=>z+(d?'DT':'ST'),tzOff=(z,d)=>TZS[z].s-(d?1:0);
+const tzRule=(z,d)=>`${tzAb(z,d)} is UTC−${tzOff(z,d)}${d?` (${TZS[z].n} standard is −${TZS[z].s}, daylight time is one hour less)`:''}`;
+const dayNote=(raw)=>raw>=1440?' (next day)':raw<0?' (previous day)':'';
+const TZREF=`<p class="say">Standard time: EST −5 · CST −6 · MST −7 · PST −8 hours from Zulu.<br>Daylight time is one hour less: EDT −4 · CDT −5 · MDT −6 · PDT −7.<br>Local → Zulu: add. Zulu → local: subtract.</p>`;
+function tzq(lvl){const easy=lvl==='easy',hard=lvl==='hard',zs=Object.keys(TZS),z=pick(zs),d=Math.random()<.5;
+  const t=easy?R(0,23)*60:lvl==='medium'?R(0,95)*15:R(0,287)*5;
+  const season=d?pick(['in July','in summer','in August','during daylight saving time']):pick(['in January','in winter','in December','on standard time']);
+  const cz=pick(TZS[z].c),place=()=>hard?`${cz} ${season}`:tzAb(z,d),where=hard?[`${cz} is on ${TZS[z].n} time, and ${season} means ${d?'daylight':'standard'} time`]:[];
+  const v=easy?R(0,1):hard?R(0,3):R(0,2),base={tol:0,time:true,extra:TZREF,say:'Standard: E5 C6 M7 P8 behind Zulu. Daylight: one hour less.'};
+  if(v===0){const raw=t+tzOff(z,d)*60,a=hh(raw);
+    return Object.assign(base,{q:hard?`It's ${N(hh(t))} local in ${place()}. What time is it in Zulu?`:`${N(hh(t)+' '+tzAb(z,d))} is what time in Zulu (UTC)?`,unit:'Z',ans:+a,
+      steps:[...where,tzRule(z,d),`Local → Zulu: add ${tzOff(z,d)} hours`,`${hh(t)} + ${tzOff(z,d)} h = ${a}Z${dayNote(raw)}`]});}
+  if(v===1){const raw=t-tzOff(z,d)*60,a=hh(raw);
+    return Object.assign(base,{q:hard?`Your ETA is ${N(hh(t)+'Z')}. What's that local in ${place()}?`:`${N(hh(t)+'Z')} is what time ${N(tzAb(z,d))}?`,unit:hard?'local':tzAb(z,d),ans:+a,
+      steps:[...where,tzRule(z,d),`Zulu → local: subtract ${tzOff(z,d)} hours`,`${hh(t)}Z − ${tzOff(z,d)} h = ${a} ${tzAb(z,d)}${dayNote(raw)}`]});}
+  const z2=pick(zs.filter(x=>x!==z)),diff=tzOff(z,d)-tzOff(z2,d),cz2=pick(TZS[z2].c);
+  if(v===2){const raw=t+diff*60,a=hh(raw);
+    return Object.assign(base,{q:hard?`It's ${N(hh(t))} in ${place()}. What time is it in ${cz2}?`:`${N(hh(t)+' '+tzAb(z,d))} is what time ${N(tzAb(z2,d))}?`,unit:hard?'local':tzAb(z2,d),ans:+a,
+      steps:[...(hard?[`${cz} is ${TZS[z].n}, ${cz2} is ${TZS[z2].n}`]:[]),`${TZS[z2].n} is ${Math.abs(diff)} hour${Math.abs(diff)>1?'s':''} ${diff>0?'ahead of':'behind'} ${TZS[z].n} (both on ${d?'daylight':'standard'} time)`,`${hh(t)} ${diff>0?'+':'−'} ${Math.abs(diff)} h = ${a}${dayNote(raw)}`]});}
+  // flight: depart one zone, arrive another
+  const dur=R(10,66)*5,c1=pick(TZS[z].c),c2=pick(TZS[z2].c),dz=t+tzOff(z,d)*60,az=dz+dur,raw=az-tzOff(z2,d)*60,toZ=Math.random()<.35,a=toZ?hh(az):hh(raw),dh=Math.floor(dur/60),dm=dur%60;
+  return Object.assign(base,{q:`Departing ${c1} at ${N(hh(t))} local ${season}, flight time ${N(dh+'h '+String(dm).padStart(2,'0')+'m')}, landing in ${c2}. ${toZ?'Arrival time in Zulu?':'Local arrival time?'}`,unit:toZ?'Z':'local',ans:+a,
+    steps:[`${c1} is ${TZS[z].n}: ${tzAb(z,d)}, UTC−${tzOff(z,d)}. ${c2} is ${TZS[z2].n}: ${tzAb(z2,d)}, UTC−${tzOff(z2,d)}`,`Departure in Zulu: ${hh(t)} + ${tzOff(z,d)} h = ${hh(dz)}Z`,`Add the flight: ${hh(dz)}Z + ${dh}:${String(dm).padStart(2,'0')} = ${hh(az)}Z`,...(toZ?[]:[`To ${tzAb(z2,d)}: ${hh(az)}Z − ${tzOff(z2,d)} h = ${hh(raw)} local${raw>=1440?' (next day)':''}`])],
+    say:'Convert to Zulu, add the flight time, convert to the destination.'});}
 const TYPES={
   desc:{label:'3:1 distance',gen(){
     const fix=pick(FIX),v=R(0,5);
@@ -500,6 +528,7 @@ const TYPES={
     return{q:pick([`SID requires ${N(g+' ft/nm')}. Groundspeed ${N(gs+' kt')}. Minimum climb rate?`,`Climb gradient ${N(g+' feet per nm')} at ${N(gs+' kt')}. What fpm do you need?`,`Walk me through it: ${N(g+' ft/nm')} required, ${N(gs+' kt')} over the ground. Rate?`]),
       unit:'fpm',ans:fpm,tol:50,steps:[`${gs} ÷ 60 = ${npm} nm/min`,`Feet per nm × nm per minute: ${g} × ${npm}`,...mulSteps(g,npm)],say:'Gradient times nm per minute. Same as GS ÷ 60, then multiply.'};}},
   xwind:{label:'Crosswind',gen(){return xwind('hard');}},
+  tz:{label:'Time zones',gen(){return tzq('hard');}},
   mult:{label:'Math skills',gen(){return mNext();}}
 };
 function mCat(a,b){const lo=Math.min(a,b),hi=Math.max(a,b);
@@ -553,13 +582,14 @@ const SIMPLE={
     return{q:`Fuel on board ${N(fmt(fob)+' lb')}, minimum landing fuel ${N(fmt(mn)+' lb')}. Burning ${N(fmt(ph)+' lb/hr')}. How many minutes can you hold?`,unit:'min',ans:m,tol:e?0:1,
       steps:[`Extra fuel: ${fmt(fob)} − ${fmt(mn)} = ${fmt(fob-mn)} lb`,`Burn per minute: ${fmt(ph)} ÷ 60 = ${pm} lb/min`,`Minutes: ${fmt(fob-mn)} ÷ ${pm}`,...divSteps(fob-mn,pm)],say:'Fuel above minimum, divided by burn per minute.'};},
   xwind(e){return xwind(e?'easy':'medium');},
+  tz(e){return tzq(e?'easy':'medium');},
   climb(e){const g=e?pick([200,300,400,500]):pick([200,250,300,350,400,450,500,600]),gs=e?pick([120,180,240,300]):R(4,10)*30,npm=gs/60,fpm=g*npm;
     return{q:`SID requires ${N(g+' ft/nm')}. Groundspeed ${N(gs+' kt')}. Minimum climb rate?`,unit:'fpm',ans:fpm,tol:e?0:50,
       steps:[`${gs} ÷ 60 = ${npm} nm/min`,`Feet per nm × nm per minute: ${g} × ${npm}`,...mulSteps(g,npm)],say:'Gradient times nm per minute.'};},
 };
 const LEVELS=['easy','medium','hard'];
 const MIXED=Object.keys(TYPES);
-const fa=c=>{const n=c.ans;if(c.unit==='nm/min')return(+n.toFixed(2)).toString();if(Math.abs(n)>=1000)return fmt(n);return(+n.toFixed(1)).toString();};
+const fa=c=>{const n=c.ans;if(c.time)return String(n).padStart(4,'0');if(c.unit==='nm/min')return(+n.toFixed(2)).toString();if(Math.abs(n)>=1000)return fmt(n);return(+n.toFixed(1)).toString();};
 
 let mode='all',lvl='hard',cur=null,start=0,tick=null,answered=false,hiddenAt=0;
 const $=id=>document.getElementById(id);
@@ -571,7 +601,7 @@ const esc=t=>String(t).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',
 // Low boxes get picked far more often. Items: times table facts (m:7x8), bridge kinds (m:x3...), and skills (s:desc...).
 const BOXW=[10,6,3.5,2,1.2,0.7],NEWW=4,SKW=[3,2.2,1.6,1.2,1,.8],SKNEW=1.5;
 // Seconds before a correct answer counts as slow. Multi-step problems get interview-style thinking time; memorized facts stay quick.
-const TARGET={desc:30,slow:45,rate:15,vsreq:60,wind:45,npm:10,fuel:30,hold:60,climb:20,xwind:20,mult:4};
+const TARGET={desc:30,slow:45,rate:15,vsreq:60,wind:45,npm:10,fuel:30,hold:60,climb:20,xwind:20,tz:20,mult:4};
 let items=load('dmd-items')||{},qn=load('dmd-qn')||0;
 if(!load('dmd-tv2')){Object.keys(items).forEach(k=>{const it=items[k];if(k.startsWith('s:')&&it.lastSlow){it.lastSlow=false;if(it.lastOk&&it.box<2)it.box=2;}});store('dmd-items',items);store('dmd-tv2',1);}
 (()=>{const old=load('dmd-miss');if(Array.isArray(old)){old.forEach(k=>{if(/^[2-9]x[2-9]$/.test(k)&&!items['m:'+k])items['m:'+k]={n:1,ok:0,slow:0,box:0,sec:0,lastQ:0,lastSlow:false,lastOk:false};});store('dmd-items',items);store('dmd-miss',null);}})();
@@ -662,8 +692,8 @@ function celebrate(sec){advancing=true;const b=$('checkBtn'),q=$('question'),tg=
     $('sRight').animate([{transform:'scale(1)'},{transform:'scale(1.5)',color:cols[1]},{transform:'scale(1)'}],{duration:500,easing:'ease-out'});}
   setTimeout(()=>{b.classList.remove('ok');b.textContent='Check';q.classList.remove('done');advancing=false;next();},reduce?600:950);}
 
-$('form').addEventListener('submit',e=>{e.preventDefault();if(!cur||advancing||!ses)return;const v=parseFloat($('answer').value.replace(/,/g,''));if(isNaN(v))return;
-  const ok=Math.abs(v-cur.ans)<=cur.tol,sec=answered?elapsed():record(ok);
+$('form').addEventListener('submit',e=>{e.preventDefault();if(!cur||advancing||!ses)return;const v=parseFloat($('answer').value.replace(/[,:]/g,''));if(isNaN(v))return;
+  const ok=cur.time?v%2400===cur.ans:Math.abs(v-cur.ans)<=cur.tol,sec=answered?elapsed():record(ok);
   if(ok)celebrate(sec);else show('bad',`Answer is ${fa(cur)}${cur.unit?' '+cur.unit:''}`);});
 $('revealBtn').onclick=()=>{if(!cur||advancing||!ses)return;record(false);show('reveal',`Answer: ${fa(cur)}${cur.unit?' '+cur.unit:''}`);};
 const goNext=()=>{if(advancing||!ses)return;if(!answered)record(false,true);next();};
