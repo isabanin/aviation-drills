@@ -439,6 +439,27 @@ function tm(lvl){const easy=lvl==='easy',hard=lvl==='hard',st=easy?30:hard?1:5,d
   let q4;do{q4=R(1,39)}while(q4%4===0);const m=q4*15,dec=m/60;
   return{q:pick([`Convert ${N(hm(m))} to decimal hours for the logbook.`,`${N(hm(m))} is how many hours in decimal?`]),unit:'hours',ans:dec,tol:0.01,extra:TMREF,
     steps:[`${m%60} minutes ÷ 60: 15 → .25, 30 → .5, 45 → .75`,`${hm(m)} = ${dec} hours`],say:'Quarter hours: 15 = .25, 30 = .5, 45 = .75.'};}
+// Reciprocal headings with the +2 / −2 digit trick: under 180, first digit +2 and second −2; 180 and up, first −2 and second +2. The last digit never changes.
+const h3=n=>String(n===0?360:n).padStart(3,'0'),r2=n=>String(n).padStart(2,'0');
+const RCREF=`<p class="say">Under 180: first digit +2, second digit −2 (070 → 250). 180 and up: first −2, second +2 (310 → 130). Last digit stays.<br>Same trick on runway numbers: 09 → 27, 34 → 16. If a digit would go below 0 or above 9, add 200 and take away 20 (or the reverse): 010 → 190.</p>`;
+function recipSteps(h){const r=(h+180)%360||360,s=h3(h),[a,b,c]=s.split('').map(Number);
+  if(h===180)return[`180 is due south, so the reciprocal is due north → 360`];
+  if(h>180&&h<200)return[`${s} is just past 180: take 180 away → ${h3(h-180)}`];
+  if(h<180){if(b>=2)return[`${s} is under 180: first digit +2, second digit −2`,`${a}→${a+2}, ${b}→${b-2}, ${c} stays → ${h3(r)}`];
+    return[`${s} is under 180, but the second digit ${b} can't drop by 2`,`So do it as numbers: + 200 = ${h+200}, then − 20 = ${h3(r)}`];}
+  if(b<=7)return[`${s} is 180 or more: first digit −2, second digit +2`,`${a}→${a-2}, ${b}→${b+2}, ${c} stays → ${h3(r)}`];
+  return[`${s} is 180 or more, but the second digit ${b} can't go up by 2`,`So do it as numbers: − 200 = ${h3(h-200)}, then + 20 = ${h3(r)}`];}
+function rwySteps(n){const r=n<=18?n+18:n-18,s=r2(n),[a,b]=s.split('').map(Number);
+  if(n<=18)return b>=2?[`Runway ${s}: same trick on two digits, first +2 and second −2`,`${a}→${a+2}, ${b}→${b-2} → ${r2(r)}`]:[`Runway ${s}: second digit can't drop by 2, so just add 18 → ${r2(r)}`];
+  return b<=7?[`Runway ${s}: first digit −2, second +2`,`${a}→${a-2}, ${b}→${b+2} → ${r2(r)}`]:[`Runway ${s}: second digit can't go up by 2, so just subtract 18 → ${r2(r)}`];}
+function recip(lvl){const easy=lvl==='easy',hard=lvl==='hard',base={tol:0,extra:RCREF,say:'Under 180: +2 then −2. Over 180: −2 then +2. Last digit stays.'};
+  if(!easy&&Math.random()<(hard?.3:.25)){const n=R(1,36),r=n<=18?n+18:n-18,side=hard&&Math.random()<.5?pick(['L','R','C']):'',opp={L:'R',R:'L',C:'C'}[side]||'';
+    return Object.assign(base,{q:hard?pick([`Landing runway ${N(r2(n)+side)}. What's the runway number at the other end?`,`Tower switches the flow from runway ${N(r2(n)+side)} to the opposite direction. Which runway?`]):`What's the reciprocal of runway ${N(r2(n))}?`,
+      unit:'runway',ans:r,rwy:true,steps:[...rwySteps(n),...(side?[`${side} becomes ${opp}: runway ${r2(r)}${opp}`]:[])]});}
+  let h;if(easy){do{h=R(2,35)*10}while(h===180||h===190||(h<180?Math.floor(h/10)%10<2:Math.floor(h/10)%10>7));}else h=hard?R(1,360):R(1,72)*5;
+  const r=(h+180)%360||360;
+  const q=hard?pick([`Heading ${N(h3(h))}. ATC says "turn to the reciprocal". New heading?`,`You're on the ${N(h3(h))} radial. What's the inbound course to the VOR?`,`Reciprocal of ${N(h3(h))}?`,`Fly the opposite direction of ${N(h3(h))}. What heading?`]):`What's the reciprocal of ${N(h3(h))}?`;
+  return Object.assign(base,{q,unit:'',ans:r,hdg:true,steps:recipSteps(h)});}
 const TYPES={
   desc:{label:'3:1 distance',gen(){
     const fix=pick(FIX),v=R(0,5);
@@ -605,6 +626,7 @@ const TYPES={
   xwind:{label:'Crosswind',gen(){return xwind('hard');}},
   tz:{label:'Time zones',gen(){return tzq('hard');}},
   tmath:{label:'Time math',gen(){return tm('hard');}},
+  recip:{label:'Reciprocal headings',gen(){return recip('hard');}},
   mult:{label:'Math skills',gen(){return mNext();}}
 };
 function mCat(a,b){const lo=Math.min(a,b),hi=Math.max(a,b);
@@ -660,13 +682,14 @@ const SIMPLE={
   xwind(e){return xwind(e?'easy':'medium');},
   tz(e){return tzq(e?'easy':'medium');},
   tmath(e){return tm(e?'easy':'medium');},
+  recip(e){return recip(e?'easy':'medium');},
   climb(e){const g=e?pick([200,300,400,500]):pick([200,250,300,350,400,450,500,600]),gs=e?pick([120,180,240,300]):R(4,10)*30,npm=gs/60,fpm=g*npm;
     return{q:`SID requires ${N(g+' ft/nm')}. Groundspeed ${N(gs+' kt')}. Minimum climb rate?`,unit:'fpm',ans:fpm,tol:e?0:50,
       steps:[`${gs} ÷ 60 = ${npm} nm/min`,`Feet per nm × nm per minute: ${g} × ${npm}`,...mulSteps(g,npm)],say:'Gradient times nm per minute.'};},
 };
 const LEVELS=['easy','medium','hard'];
 const MIXED=Object.keys(TYPES);
-const fa=c=>{const n=c.ans;if(c.time)return String(n).padStart(4,'0');if(c.dur)return Math.floor(n/100)+':'+String(n%100).padStart(2,'0');if(c.unit==='nm/min')return(+n.toFixed(2)).toString();if(Math.abs(n)>=1000)return fmt(n);return(+n.toFixed(1)).toString();};
+const fa=c=>{const n=c.ans;if(c.hdg)return h3(n)+'°';if(c.rwy)return r2(n);if(c.time)return String(n).padStart(4,'0');if(c.dur)return Math.floor(n/100)+':'+String(n%100).padStart(2,'0');if(c.unit==='nm/min')return(+n.toFixed(2)).toString();if(Math.abs(n)>=1000)return fmt(n);return(+n.toFixed(1)).toString();};
 
 let mode='all',lvl='hard',cur=null,start=0,tick=null,answered=false,hiddenAt=0;
 const $=id=>document.getElementById(id);
@@ -678,7 +701,7 @@ const esc=t=>String(t).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',
 // Low boxes get picked far more often. Items: times table facts (m:7x8), bridge kinds (m:x3...), and skills (s:desc...).
 const BOXW=[10,6,3.5,2,1.2,0.7],NEWW=4,SKW=[3,2.2,1.6,1.2,1,.8],SKNEW=1.5;
 // Seconds before a correct answer counts as slow. Multi-step problems get interview-style thinking time; memorized facts stay quick.
-const TARGET={desc:30,slow:45,rate:15,vsreq:60,wind:45,npm:10,fuel:30,hold:60,climb:20,xwind:20,tz:20,tmath:20,mult:4};
+const TARGET={desc:30,slow:45,rate:15,vsreq:60,wind:45,npm:10,fuel:30,hold:60,climb:20,xwind:20,tz:20,tmath:20,recip:6,mult:4};
 let items=load('dmd-items')||{},qn=load('dmd-qn')||0;
 if(!load('dmd-tv2')){Object.keys(items).forEach(k=>{const it=items[k];if(k.startsWith('s:')&&it.lastSlow){it.lastSlow=false;if(it.lastOk&&it.box<2)it.box=2;}});store('dmd-items',items);store('dmd-tv2',1);}
 (()=>{const old=load('dmd-miss');if(Array.isArray(old)){old.forEach(k=>{if(/^[2-9]x[2-9]$/.test(k)&&!items['m:'+k])items['m:'+k]={n:1,ok:0,slow:0,box:0,sec:0,lastQ:0,lastSlow:false,lastOk:false};});store('dmd-items',items);store('dmd-miss',null);}})();
@@ -775,7 +798,7 @@ function celebrate(sec,v){advancing=true;const b=$('checkBtn'),q=$('question'),t
   setTimeout(()=>{b.classList.remove('ok');b.textContent='Check';q.classList.remove('done');advancing=false;next();},note?2600:reduce?600:950);}
 
 $('form').addEventListener('submit',e=>{e.preventDefault();if(!cur||advancing||!ses)return;const raw=$('answer').value.trim(),v=parseFloat((cur.time||cur.dur?raw.replace(/[.:]/g,''):raw).replace(/[,:]/g,''));if(isNaN(v))return;
-  const ok=cur.time?v%2400===cur.ans:cur.dur?v===cur.ans:Math.abs(v-cur.ans)<=cur.tol,sec=answered?elapsed():record(ok);
+  const ok=cur.hdg?(v%360||360)===cur.ans:cur.time?v%2400===cur.ans:cur.dur||cur.rwy?v===cur.ans:Math.abs(v-cur.ans)<=cur.tol,sec=answered?elapsed():record(ok);
   if(ok)celebrate(sec,v);else show('bad',`Answer is ${fa(cur)}${cur.unit?' '+cur.unit:''}`);});
 $('revealBtn').onclick=()=>{if(!cur||advancing||!ses)return;record(false);show('reveal',`Answer: ${fa(cur)}${cur.unit?' '+cur.unit:''}`);};
 const goNext=()=>{if(advancing||!ses)return;if(!answered)record(false,true);next();};
