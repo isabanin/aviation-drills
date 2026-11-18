@@ -98,6 +98,11 @@ h2{font-size:1.7rem}
 .tzt td span{font:500 .75rem var(--mono);color:var(--muted)}
 .tzt .o4{background:var(--t-mir)} .tzt .o5{background:var(--t-pat)} .tzt .o6{background:var(--t-rule)} .tzt .o7{background:var(--t-sq)} .tzt .o8{background:var(--t-core)}
 .tzt td.hl{box-shadow:inset 0 0 0 3px var(--magenta)}
+#dash.dash{border-top:0;padding-top:0;margin-top:0}
+.dash.more{border-top:1px solid var(--rule);padding-top:16px;margin-top:6px}
+.dash.more{align-items:flex-start}
+.dash.more:empty{display:none}
+h3.ns{border-top:1px solid var(--rule);padding-top:16px;width:100%}
 .start-row{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
 .btn:disabled{opacity:.45;cursor:not-allowed}
 .quick{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
@@ -216,7 +221,8 @@ h2{font-size:1.7rem}
       </div>
     </div>
     <div class="start" id="startView">
-      <h3>New session</h3>
+      <div class="dash" id="dash"></div>
+      <h3 class="ns">New session</h3>
       <div class="count-row">
         <span class="lbl" id="countLbl">Questions</span>
         <div class="stepper" role="group" aria-labelledby="countLbl">
@@ -227,7 +233,7 @@ h2{font-size:1.7rem}
         <span class="est" id="est">about 5 min</span>
       </div>
       <div class="start-row"><button class="btn" type="button" id="startBtn">Start session</button><span class="est" id="selInfo" aria-live="polite"></span></div>
-      <div class="dash" id="dash"></div>
+      <div class="dash more" id="dashMore"></div>
     </div>
     <div class="play" id="playView" hidden>
     <div>
@@ -757,18 +763,14 @@ function renderDash(){const lg=load('dmd-log')||{},hist=load('dmd-hist')||[],el=
   const focus=skills.filter(x=>x.st==='weak').sort((a,b)=>a.acc-b.acc).slice(0,2).map(x=>TYPES[x.k].label);
   const chip={strong:'Strong',ok:'Okay',weak:'Needs work',none:'No data'};
   const weak=skills.filter(x=>x.st==='weak').map(x=>x.k);
-  let h=`<h3>Skills</h3><p class="dmeta">${answered?`${answered} answers logged${hist.length?` · ${hist.length} session${hist.length>1?'s':''}`:''}${focus.length?` · Focus next: <b>${focus.join(', ')}</b>`:''}`:'Tick the skills for your next session. Accuracy and timing fill in as you practice.'}</p>`;
+  let h=`<h3>Skills</h3><p class="dmeta">${answered?`${answered} answer${answered===1?'':'s'} logged${hist.length?` · ${hist.length} session${hist.length>1?'s':''}`:''}${focus.length?` · Focus next: <b>${focus.join(', ')}</b>`:''}`:'Tick the skills for your next session. Accuracy and timing fill in as you practice.'}</p>`;
   h+=`<div class="quick"><span class="lbl">Select</span><button type="button" class="btn ghost sm" data-q="all">All</button><button type="button" class="btn ghost sm" data-q="none">None</button><button type="button" class="btn ghost sm" data-q="weak"${weak.length?'':' disabled'}>Needs work${weak.length?` (${weak.length})`:''}</button></div>`;
   h+=`<div class="tbl-wrap"><table class="bk sk" id="skillTbl"><thead><tr><th class="ck"><input type="checkbox" id="skAll" aria-label="Select all skills"></th><th>Skill</th><th>Right</th><th>Avg</th><th>Status</th></tr></thead><tbody>${skills.map(x=>`<tr data-row="${x.k}"><td class="ck"><input type="checkbox" id="sk-${x.k}" data-sk="${x.k}"></td><td><label for="sk-${x.k}">${TYPES[x.k].label}</label></td><td>${x.acc===null?'–':x.acc+'%'}</td><td>${x.n?x.avg+'s':'–'}</td><td><span class="chip ${x.st}">${chip[x.st]}</span></td></tr>`).join('')}</tbody></table></div>${answered?`<p class="note">Based on your last 50 answers per skill. A correct answer counts as slow past the target: 3–4 s for times table facts, 10–15 s for single steps, 30–60 s for multi-step problems.</p>`:''}`;
-  if(!answered){el.innerHTML=h;wireSel(el,weak);renderSel();return;}
-  h+=`<div class="heat-wrap"><div class="lbl">Times table</div><div class="heat" id="heat" role="grid" aria-label="Times table weak spots"><div class="hd">×</div>`;
-  for(let j=2;j<=9;j++)h+=`<div class="hd">${j}</div>`;
-  for(let i=2;i<=9;i++){h+=`<div class="hd">${i}</div>`;for(let j=2;j<=9;j++){const lo=Math.min(i,j),hi=Math.max(i,j),k='m:'+lo+'x'+hi,s=mState(items[k]);h+=`<button type="button" class="c ${s}" data-k="${k}" aria-label="${i} times ${j}: ${STATE_LBL[s]}">${i*j}</button>`;}}
-  h+=`</div><ul class="legend"><li><i class="miss"></i>Missed</li><li><i class="slow"></i>Slow or shaky</li><li><i class="good"></i>Solid</li><li><i class="none"></i>Not practiced</li></ul>`;
-  h+=`<div class="lbl">Techniques</div><div class="bridge">${BKEYS.map(k=>{const s=mState(items[k]);return`<button type="button" class="bchip ${s}" data-k="${k}">${BRIDGE[k].label}</button>`;}).join('')}</div><p class="cell-info" id="cellInfo" aria-live="polite">Tap a cell to see its history.</p></div>`;
+  if(!answered){el.innerHTML=h;wireSel(el,weak);renderSel();$('dashMore').innerHTML='';return;}
+  el.innerHTML=h;wireSel(el,weak);renderSel();h='';
   if(hist.length)h+=`<div class="recent"><div class="lbl">Recent sessions</div><ol>${hist.slice(-5).reverse().map(x=>`<li><span>${new Date(x.t).toLocaleDateString(undefined,{month:'short',day:'numeric'})} · ${esc(x.label)}</span><b class="${x.pct>=75?'hi':x.pct>=50?'mid':'lo'}">${x.pct}%</b><em>${x.n} q · ${x.avg}s avg</em></li>`).join('')}</ol></div>`;
   h+=`<button type="button" class="btn ghost sm" id="resetBtn">Reset progress</button>`;
-  el.innerHTML=h;wireSel(el,weak);renderSel();
+  $('dashMore').innerHTML=h;
   el.querySelectorAll('[data-k]').forEach(b=>b.addEventListener('click',()=>{el.querySelectorAll('.sel').forEach(x=>x.classList.remove('sel'));el.querySelectorAll(`[data-k="${b.dataset.k}"]`).forEach(x=>x.classList.add('sel'));const k=b.dataset.k,it=items[k],name=BRIDGE[k]?BRIDGE[k].label+' problems':k.slice(2).replace('x',' × ');
     $('cellInfo').textContent=it?`${name}: ${it.ok} of ${it.n} right, ${it.slow} slow, recent avg ${it.sec.toFixed(1)}s. ${STATE_LBL[mState(it)]}.`:`${name}: not practiced yet.`;}));
   const rb=$('resetBtn');let armed=false;rb.addEventListener('click',()=>{if(!armed){armed=true;rb.textContent='Tap again to erase all progress';rb.classList.add('danger');setTimeout(()=>{armed=false;if(rb.isConnected){rb.textContent='Reset progress';rb.classList.remove('danger');}},4000);return;}
