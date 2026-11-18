@@ -103,6 +103,36 @@ h2{font-size:1.7rem}
 .dash.more{align-items:flex-start}
 .dash.more:empty{display:none}
 h3.ns{border-top:1px solid var(--rule);padding-top:16px;width:100%}
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--rule);margin-top:-4px}
+.tabs button,.sk tbody tr,.seg button,.btn{-webkit-tap-highlight-color:transparent}
+.tabs button{font:600 .98rem var(--body);color:var(--muted);background:transparent;border:0;border-bottom:3px solid transparent;padding:10px 14px 9px;cursor:pointer;margin-bottom:-1px}
+.tabs button[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--magenta)}
+.tabs button:focus-visible{outline:2px solid var(--magenta);outline-offset:-2px;border-radius:6px}
+.progress{display:flex;flex-direction:column;gap:24px}
+.progress>.btn{align-self:flex-start}
+.progress section{display:flex;flex-direction:column;gap:10px}
+.progress h3{font-family:var(--display);font-size:1.25rem;margin:0}
+.tiles{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.tile{background:var(--paper);border-radius:10px;padding:12px 14px;display:flex;flex-direction:column;gap:2px;min-width:0}
+.tile b{font:700 1.6rem/1.1 var(--mono);font-variant-numeric:tabular-nums;color:var(--ink)}
+.tile span{font-size:.82rem;color:var(--muted)}
+.tile em{font-style:normal;font-weight:600;display:block}.tile em.up{color:var(--good)}.tile em.down{color:var(--bad)}
+@media (max-width:520px){.tiles{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.trend{width:100%;height:auto;display:block;max-width:640px}
+.bars{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:14px;max-width:560px}
+.bar-head{display:flex;justify-content:space-between;align-items:center;gap:8px;font-weight:500}
+.bar{height:8px;border-radius:4px;background:var(--rule);overflow:hidden;margin:6px 0 4px}
+.bar i{display:block;height:100%;border-radius:4px}
+.bar i.weak{background:var(--bad)}.bar i.ok{background:var(--magenta)}.bar i.strong{background:var(--good)}
+.bar-meta{font-size:.84rem;color:var(--muted)}.bar-meta b{color:var(--ink);font-family:var(--mono)}
+.misslog{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;max-width:640px}
+.misslog li{border-top:1px solid var(--rule);padding:9px 0;display:flex;flex-direction:column;gap:3px}
+.mq{font-size:.92rem}.ma{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;font-size:.82rem;color:var(--muted)}
+.ma b{font-family:var(--mono);color:var(--bad);font-weight:600}
+.hist{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px;font-size:.9rem;max-width:640px}
+.hist li{display:grid;grid-template-columns:1fr auto;gap:0 12px;align-items:baseline;border-top:1px solid var(--rule);padding-top:6px}
+.hist li b{font-family:var(--mono)}.hist li b.hi{color:var(--good)}.hist li b.mid{color:var(--magenta)}.hist li b.lo{color:var(--bad)}
+.hist li em{font-style:normal;color:var(--muted);font-size:.82rem;grid-column:1/-1}
 .start-row{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
 .btn:disabled{opacity:.45;cursor:not-allowed}
 .quick{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
@@ -212,6 +242,7 @@ h3.ns{border-top:1px solid var(--rule);padding-top:16px;width:100%}
     </div>
     <div class="prog" id="prog" hidden><i id="progBar"></i></div>
     <div class="ses-info" id="sesInfo" hidden></div>
+    <div class="tabs" id="tabs" role="tablist" aria-label="Sections"><button type="button" role="tab" id="tab-new" data-tab="new">New session</button><button type="button" role="tab" id="tab-prog" data-tab="prog">Progress</button></div>
     <div class="controls" id="controls">
       <p class="mult-note" id="multNote" hidden>Adaptive: times table facts plus mental shortcuts like × 1,500, ÷ 2,500, ÷ 60 and halves. Weak and slow items come back more often.</p>
       <div class="mode" id="lvlWrap">
@@ -233,8 +264,8 @@ h3.ns{border-top:1px solid var(--rule);padding-top:16px;width:100%}
         <span class="est" id="est">about 5 min</span>
       </div>
       <div class="start-row"><button class="btn" type="button" id="startBtn">Start session</button><span class="est" id="selInfo" aria-live="polite"></span></div>
-      <div class="dash more" id="dashMore"></div>
     </div>
+    <div class="progress" id="progView" hidden></div>
     <div class="play" id="playView" hidden>
     <div>
       <div class="qtype" id="qtype"></div>
@@ -756,33 +787,61 @@ function wireSel(el,weak){
   el.querySelectorAll('tr[data-row]').forEach(tr=>tr.addEventListener('click',e=>{if(e.target.closest('input,label'))return;const k=tr.dataset.row;setChosen(chosen.includes(k)?chosen.filter(x=>x!==k):chosen.concat(k));}));
   $('skAll').addEventListener('change',e=>setChosen(e.target.checked?MIXED:[]));
   el.querySelectorAll('[data-q]').forEach(b=>b.addEventListener('click',()=>setChosen(b.dataset.q==='all'?MIXED:b.dataset.q==='none'?[]:weak)));}
-function renderDash(){const lg=load('dmd-log')||{},hist=load('dmd-hist')||[],el=$('dash');
-  const skills=Object.keys(TYPES).map(k=>{const a=lg[k]||[],n=a.length,ok=a.filter(x=>x[0]).length,slow=a.filter(x=>x[0]&&x[1]>(k==='mult'?x[2]:Math.max(x[2],TARGET[k]))).length,avg=n?Math.round(a.reduce((s,x)=>s+x[1],0)/n):0,it=items['s:'+k];
-    const acc=n?Math.round(ok/n*100):null,st=!n?'none':acc<75||slow/n>.4?'weak':acc>=90&&slow/n<=.2?'strong':'ok';return{k,n,acc,avg,st,all:it?it.n:0};});
-  const answered=skills.reduce((s,x)=>s+x.all,0);
-  const focus=skills.filter(x=>x.st==='weak').sort((a,b)=>a.acc-b.acc).slice(0,2).map(x=>TYPES[x.k].label);
-  const chip={strong:'Strong',ok:'Okay',weak:'Needs work',none:'No data'};
-  const weak=skills.filter(x=>x.st==='weak').map(x=>x.k);
-  let h=`<h3>Skills</h3><p class="dmeta">${answered?`${answered} answer${answered===1?'':'s'} logged${hist.length?` · ${hist.length} session${hist.length>1?'s':''}`:''}${focus.length?` · Focus next: <b>${focus.join(', ')}</b>`:''}`:'Tick the skills for your next session. Accuracy and timing fill in as you practice.'}</p>`;
-  h+=`<div class="quick"><span class="lbl">Select</span><button type="button" class="btn ghost sm" data-q="all">All</button><button type="button" class="btn ghost sm" data-q="none">None</button><button type="button" class="btn ghost sm" data-q="weak"${weak.length?'':' disabled'}>Needs work${weak.length?` (${weak.length})`:''}</button></div>`;
-  h+=`<div class="tbl-wrap"><table class="bk sk" id="skillTbl"><thead><tr><th class="ck"><input type="checkbox" id="skAll" aria-label="Select all skills"></th><th>Skill</th><th>Right</th><th>Avg</th><th>Status</th></tr></thead><tbody>${skills.map(x=>`<tr data-row="${x.k}"><td class="ck"><input type="checkbox" id="sk-${x.k}" data-sk="${x.k}"></td><td><label for="sk-${x.k}">${TYPES[x.k].label}</label></td><td>${x.acc===null?'–':x.acc+'%'}</td><td>${x.n?x.avg+'s':'–'}</td><td><span class="chip ${x.st}">${chip[x.st]}</span></td></tr>`).join('')}</tbody></table></div>${answered?`<p class="note">Based on your last 50 answers per skill. A correct answer counts as slow past the target: 3–4 s for times table facts, 10–15 s for single steps, 30–60 s for multi-step problems.</p>`:''}`;
-  if(!answered){el.innerHTML=h;wireSel(el,weak);renderSel();$('dashMore').innerHTML='';return;}
-  el.innerHTML=h;wireSel(el,weak);renderSel();h='';
-  if(hist.length)h+=`<div class="recent"><div class="lbl">Recent sessions</div><ol>${hist.slice(-5).reverse().map(x=>`<li><span>${new Date(x.t).toLocaleDateString(undefined,{month:'short',day:'numeric'})} · ${esc(x.label)}</span><b class="${x.pct>=75?'hi':x.pct>=50?'mid':'lo'}">${x.pct}%</b><em>${x.n} q · ${x.avg}s avg</em></li>`).join('')}</ol></div>`;
+// ---- Progress tab ----
+function skillStats(){const lg=load('dmd-log')||{};
+  return Object.keys(TYPES).map(k=>{const a=lg[k]||[],n=a.length,ok=a.filter(x=>x[0]).length,slow=a.filter(x=>x[0]&&x[1]>(k==='mult'?x[2]:Math.max(x[2],TARGET[k]))).length,avg=n?Math.round(a.reduce((s,x)=>s+x[1],0)/n):0,it=items['s:'+k];
+    const acc=n?Math.round(ok/n*100):null,st=!n?'none':acc<75||slow/n>.4?'weak':acc>=90&&slow/n<=.2?'strong':'ok';return{k,n,ok,slow,acc,avg,st,all:it?it.n:0};});}
+const CHIP={strong:'Strong',ok:'Okay',weak:'Needs work',none:'No data'};
+const dstr=t=>new Date(t).toLocaleDateString(undefined,{month:'short',day:'numeric'});
+function trendSvg(hist){const W=600,H=190,L=34,Rp=12,T=12,B=28,pts=hist.slice(-20),n=pts.length,x=i=>L+(n===1?(W-L-Rp)/2:i*(W-L-Rp)/(n-1)),lo=Math.max(0,Math.min(50,Math.floor((Math.min(...pts.map(p=>p.pct))-10)/10)*10)),y=v=>T+(100-v)*(H-T-B)/(100-lo);
+  let g=`<svg class="trend" viewBox="0 0 ${W} ${H}" role="img" aria-label="Session scores, last ${n} sessions">`;
+  for(const v of [lo,50,75,90,100].filter((v,i,a)=>v>=lo&&a.indexOf(v)===i)){g+=`<line x1="${L}" x2="${W-Rp}" y1="${y(v)}" y2="${y(v)}" stroke="var(--rule)" stroke-width="1"${v===90?' stroke-dasharray="4 4"':''}/><text x="${L-6}" y="${y(v)+4}" text-anchor="end" font-size="11" fill="var(--muted)">${v}</text>`;}
+  const path=pts.map((p,i)=>`${i?'L':'M'}${x(i).toFixed(1)} ${y(p.pct).toFixed(1)}`).join(' ');
+  g+=`<path d="${path} L${x(n-1).toFixed(1)} ${y(lo)} L${x(0).toFixed(1)} ${y(lo)} Z" fill="var(--magenta)" fill-opacity=".08"/><path d="${path}" fill="none" stroke="var(--magenta)" stroke-width="2.5" stroke-linejoin="round"/>`;
+  pts.forEach((p,i)=>{g+=`<circle cx="${x(i).toFixed(1)}" cy="${y(p.pct).toFixed(1)}" r="${i===n-1?5:3.5}" fill="${i===n-1?'var(--magenta)':'var(--panel)'}" stroke="var(--magenta)" stroke-width="2"><title>${dstr(p.t)}: ${p.pct}%</title></circle>`;});
+  g+=`<text x="${x(0)}" y="${H-8}" text-anchor="start" font-size="11" fill="var(--muted)">${dstr(pts[0].t)}</text><text x="${x(n-1)}" y="${H-8}" text-anchor="end" font-size="11" fill="var(--muted)">${dstr(pts[n-1].t)} · ${pts[n-1].pct}%</text>`;
+  return g+`</svg>`;}
+function renderProg(){const el=$('progView'),hist=load('dmd-hist')||[],misses=load('dmd-misses')||[],sk=skillStats(),answered=sk.reduce((s,x)=>s+x.all,0);
+  if(!answered&&!hist.length){el.innerHTML=`<div class="dash-empty"><h3>No practice yet</h3><p>Finish a session on the New session tab and your scores, weak spots and times table map show up here.</p></div>`;return;}
+  const last=hist.slice(-5),prev=hist.slice(-10,-5),avg=a=>a.length?Math.round(a.reduce((s,x)=>s+x.pct,0)/a.length):null,la=avg(last),pa=avg(prev);
+  const tot=sk.reduce((s,x)=>s+x.n,0),okAll=sk.reduce((s,x)=>s+x.ok,0);
+  let h=`<div class="tiles"><div class="tile"><b>${answered}</b><span>answers logged</span></div><div class="tile"><b>${hist.length}</b><span>sessions</span></div>`;
+  h+=`<div class="tile"><b>${la===null?'–':la+'%'}</b><span>avg of last 5 sessions${pa!==null&&la!==null?`<em class="${la>=pa?'up':'down'}">${la>=pa?'▲':'▼'} ${Math.abs(la-pa)} vs the 5 before</em>`:''}</span></div><div class="tile"><b>${tot?Math.round(okAll/tot*100)+'%':'–'}</b><span>right overall</span></div></div>`;
+  if(hist.length>=2)h+=`<section><h3>Score trend</h3>${trendSvg(hist)}<p class="note">Last ${Math.min(20,hist.length)} sessions. Dashed line is 90%.</p></section>`;
+  const ranked=sk.filter(x=>x.n).sort((a,b)=>(a.acc-b.acc)||(b.slow/b.n-a.slow/a.n));
+  if(ranked.length)h+=`<section><h3>Where you're losing points</h3><p class="note">Weakest first. Bar shows how often you got it right; slow means right but past the target time.</p><ul class="bars">${ranked.map(x=>`<li><div class="bar-head"><span>${TYPES[x.k].label}</span><span class="chip ${x.st}">${CHIP[x.st]}</span></div><div class="bar"><i class="${x.st}" style="width:${x.acc}%"></i></div><div class="bar-meta"><b>${x.acc}%</b> right · ${x.slow?`<b>${Math.round(x.slow/x.n*100)}%</b> slow · `:''}avg ${x.avg}s (target ${TARGET[x.k]}s) · ${x.n} answers</div></li>`).join('')}</ul></section>`;
+  if(misses.length)h+=`<section><h3>Recent misses</h3><ol class="misslog">${misses.slice(-10).reverse().map(m=>`<li><div class="mq">${esc(m.q)}</div><div class="ma"><span>${esc(TYPES[m.k]?TYPES[m.k].label:m.k)} · ${dstr(m.t)}</span><b>${m.skip?'Skipped · ':''}${esc(m.a)}</b></div></li>`).join('')}</ol></section>`;
+  h+=`<section><h3>Times table</h3><div class="heat-wrap"><div class="heat" role="grid" aria-label="Times table weak spots"><div class="hd">×</div>`;
+  for(let j=2;j<=9;j++)h+=`<div class="hd">${j}</div>`;
+  for(let i=2;i<=9;i++){h+=`<div class="hd">${i}</div>`;for(let j=2;j<=9;j++){const k='m:'+Math.min(i,j)+'x'+Math.max(i,j),s=mState(items[k]);h+=`<button type="button" class="c ${s}" data-k="${k}" aria-label="${i} times ${j}: ${STATE_LBL[s]}">${i*j}</button>`;}}
+  h+=`</div><ul class="legend"><li><i class="miss"></i>Missed</li><li><i class="slow"></i>Slow or shaky</li><li><i class="good"></i>Solid</li><li><i class="none"></i>Not practiced</li></ul>`;
+  h+=`<div class="lbl">Mental-math techniques</div><div class="bridge">${BKEYS.map(k=>`<button type="button" class="bchip ${mState(items[k])}" data-k="${k}">${BRIDGE[k].label}</button>`).join('')}</div><p class="cell-info" id="cellInfo" aria-live="polite">Tap a cell or technique to see its history.</p></div></section>`;
+  if(hist.length)h+=`<section><h3>Session history</h3><ol class="hist">${hist.slice().reverse().map(x=>`<li><span>${dstr(x.t)} · ${esc(x.label)}</span><b class="${x.pct>=75?'hi':x.pct>=50?'mid':'lo'}">${x.pct}%</b><em>${x.n} questions · ${x.avg}s avg</em></li>`).join('')}</ol></section>`;
   h+=`<button type="button" class="btn ghost sm" id="resetBtn">Reset progress</button>`;
-  $('dashMore').innerHTML=h;
-  el.querySelectorAll('[data-k]').forEach(b=>b.addEventListener('click',()=>{el.querySelectorAll('.sel').forEach(x=>x.classList.remove('sel'));el.querySelectorAll(`[data-k="${b.dataset.k}"]`).forEach(x=>x.classList.add('sel'));const k=b.dataset.k,it=items[k],name=BRIDGE[k]?BRIDGE[k].label+' problems':k.slice(2).replace('x',' × ');
+  el.innerHTML=h;
+  el.querySelectorAll('[data-k]').forEach(b=>b.addEventListener('click',()=>{el.querySelectorAll('.sel').forEach(x=>x.classList.remove('sel'));el.querySelectorAll(`[data-k="${b.dataset.k}"]`).forEach(x=>x.classList.add('sel'));
+    const k=b.dataset.k,it=items[k],name=BRIDGE[k]?BRIDGE[k].label+' problems':k.slice(2).replace('x',' × ');
     $('cellInfo').textContent=it?`${name}: ${it.ok} of ${it.n} right, ${it.slow} slow, recent avg ${it.sec.toFixed(1)}s. ${STATE_LBL[mState(it)]}.`:`${name}: not practiced yet.`;}));
   const rb=$('resetBtn');let armed=false;rb.addEventListener('click',()=>{if(!armed){armed=true;rb.textContent='Tap again to erase all progress';rb.classList.add('danger');setTimeout(()=>{armed=false;if(rb.isConnected){rb.textContent='Reset progress';rb.classList.remove('danger');}},4000);return;}
-    items={};qn=0;['dmd-items','dmd-qn','dmd-log','dmd-hist'].forEach(k=>store(k,null));renderDash();});}
+    items={};qn=0;['dmd-items','dmd-qn','dmd-log','dmd-hist','dmd-misses'].forEach(k=>store(k,null));renderProg();});}
+function renderDash(){const hist=load('dmd-hist')||[],el=$('dash'),skills=skillStats();
+  const answered=skills.reduce((s,x)=>s+x.all,0),focus=skills.filter(x=>x.st==='weak').sort((a,b)=>a.acc-b.acc).slice(0,2).map(x=>TYPES[x.k].label),weak=skills.filter(x=>x.st==='weak').map(x=>x.k);
+  let h=`<h3>Skills</h3><p class="dmeta">${answered?`Tick what you want to practice.${focus.length?` Focus next: <b>${focus.join(', ')}</b>`:''}`:'Tick the skills for your next session. Accuracy and timing fill in as you practice.'}</p>`;
+  h+=`<div class="quick"><span class="lbl">Select</span><button type="button" class="btn ghost sm" data-q="all">All</button><button type="button" class="btn ghost sm" data-q="none">None</button><button type="button" class="btn ghost sm" data-q="weak"${weak.length?'':' disabled'}>Needs work${weak.length?` (${weak.length})`:''}</button></div>`;
+  h+=`<div class="tbl-wrap"><table class="bk sk" id="skillTbl"><thead><tr><th class="ck"><input type="checkbox" id="skAll" aria-label="Select all skills"></th><th>Skill</th><th>Right</th><th>Avg</th><th>Status</th></tr></thead><tbody>${skills.map(x=>`<tr data-row="${x.k}"><td class="ck"><input type="checkbox" id="sk-${x.k}" data-sk="${x.k}"></td><td><label for="sk-${x.k}">${TYPES[x.k].label}</label></td><td>${x.acc===null?'–':x.acc+'%'}</td><td>${x.n?x.avg+'s':'–'}</td><td><span class="chip ${x.st}">${CHIP[x.st]}</span></td></tr>`).join('')}</tbody></table></div>`;
+  el.innerHTML=h;wireSel(el,weak);renderSel();}
 
 
 // Session: {n: target count, res: [{k,ok,sec,q,a,skip}]}
 let ses=load('dmd-session');if(!ses||!Array.isArray(ses.res)||!(ses.n>0)||ses.res.length>=ses.n)ses=null;
 const saveSes=()=>store('dmd-session',ses);
 const PER_Q=15; // seconds per question used for the time estimate
+let tab=load('dmd-tab')==='prog'?'prog':'new';
 function view(v){$('startView').hidden=v!=='start';$('playView').hidden=v!=='play';$('sumView').hidden=v!=='sum';
-  const on=v==='play';$('stats').hidden=!on;$('stopBtn').hidden=!on;$('prog').hidden=!on;$('controls').hidden=v!=='start';$('sesInfo').hidden=!on;if(on)$('sesInfo').textContent=selLabel()+' · '+(onlyMult()?'Adaptive':lvl[0].toUpperCase()+lvl.slice(1));renderLvl();if(v==='start')renderDash();}
+  const on=v==='play';$('stats').hidden=!on;$('stopBtn').hidden=!on;$('prog').hidden=!on;$('controls').hidden=v!=='start';$('sesInfo').hidden=!on;if(on)$('sesInfo').textContent=selLabel()+' · '+(onlyMult()?'Adaptive':lvl[0].toUpperCase()+lvl.slice(1));renderLvl();
+  const st=v==='start',nw=st&&tab==='new';$('tabs').hidden=!st;$('controls').hidden=!nw;$('startView').hidden=!nw;$('progView').hidden=!(st&&tab==='prog');
+  document.querySelectorAll('#tabs [role=tab]').forEach(b=>{const on2=b.dataset.tab===tab;b.setAttribute('aria-selected',on2);b.tabIndex=on2?0:-1;});
+  if(nw)renderDash();else if(st)renderProg();}
 function renderStats(){if(!ses)return;const r=ses.res,right=r.filter(x=>x.ok).length,t=r.reduce((a,x)=>a+x.sec,0);
   $('sQ').textContent=Math.min(r.length+(answered?0:1),ses.n);$('sN').textContent=ses.n;$('sRight').textContent=right+'/'+r.length;
   $('sAvg').textContent=r.length?Math.round(t/r.length)+'s':'–';$('progBar').style.width=(r.length/ses.n*100)+'%';}
@@ -790,9 +849,11 @@ const elapsed=()=>Math.min(300,Math.round((Date.now()-start)/1000));
 document.addEventListener('visibilitychange',()=>{if(document.hidden)hiddenAt=Date.now();else if(hiddenAt){start+=Date.now()-hiddenAt;hiddenAt=0;}});
 function record(ok,skip){if(!ses||answered)return;answered=true;clearInterval(tick);const sec=elapsed();
   ses.res.push({k:cur.key,ok,sec,q:$('question').textContent,a:fa(cur)+(cur.unit?' '+cur.unit:''),skip:!!skip});saveSes();
+  if(!ok){const ms=load('dmd-misses')||[];ms.push({t:Date.now(),k:cur.key,q:$('question').textContent,a:fa(cur)+(cur.unit?' '+cur.unit:''),skip:!!skip});if(ms.length>40)ms.splice(0,ms.length-40);store('dmd-misses',ms);}
   logAnswer(cur,ok,sec);renderStats();if(ses.res.length>=ses.n)$('nextBtn').textContent='See score';return sec;}
 const isDone=()=>ses&&ses.res.length>=ses.n;
 
+$('tabs').addEventListener('click',e=>{const b=e.target.closest('[data-tab]');if(!b||b.dataset.tab===tab)return;tab=b.dataset.tab;store('dmd-tab',tab);view('start');});
 const recentQ=[];
 function next(){if(isDone())return finish();
   const k=chosen.length===1?chosen[0]:pickSkill(),gen=()=>k==='mult'?mNext():lvl==='hard'?TYPES[k].gen():SIMPLE[k](lvl==='easy');let g=gen();for(let i=0;i<15&&recentQ.includes(g.q);i++)g=gen();
