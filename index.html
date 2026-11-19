@@ -304,7 +304,7 @@ const fm=n=>Number.isInteger(n)?n.toLocaleString('en-US'):String(+n.toFixed(2));
 const tz=n=>{if(!Number.isInteger(n)||n===0)return 0;let k=0;while(n%10===0){n/=10;k++}return k;};
 const zs=k=>k===1?'a zero':k+' zeros';
 const gcd=(a,b)=>b?gcd(b,a%b):a;
-function fracStep(q,r,y){const g=gcd(r,y),f=r/y;return`Leftover ${r}/${y}${g>1?` = ${r/g}/${y/g}`:''} ≈ ${fm(+f.toFixed(2))}, so ≈ ${fm(+(q+f).toFixed(2))}`;}
+const fracTxt=(q,r,y)=>{const g=gcd(r,y),f=r/y;return`${r}/${y}${g>1?` = ${r/g}/${y/g}`:''}, so ≈ ${fm(+(q+f).toFixed(2))}`;};
 function mulCore(x,y){if(x<y)[x,y]=[y,x];const p=x*y;
   if(x<=12&&y<=9)return[`${x} × ${y} = ${p}`];
   if(y===5&&x!==25&&x!==15)return[`× 5 is half of × 10: ${fm(x)} × 10 = ${fm(x*10)}`,`Halve it: ${fm(p)}`];
@@ -326,30 +326,32 @@ function mulSteps(a,b){
   out.push(...mulCore(x,y));
   if(z)out.push(`Put ${zs(z)} back: ${fm(x*y)} → ${fm(a*b)}`);
   return out;}
+// Division in as few steps as possible: each line is one mental move.
 function divCore(x,y,out){const res=x/y,q=Math.floor(res),r=x-q*y;
   if(y===1)return;
   if(!r&&q<=12&&y<=12){out.push(`${fm(x)} ÷ ${y} = ${q}, because ${y} × ${q} = ${fm(x)}`);return;}
-  if(y===2&&!r){out.push(`Halve it: ${fm(x)} → ${fm(res)}`);return;}
-  if(y===4&&!r){out.push(`÷ 4 is halving twice: ${fm(x)} → ${fm(x/2)} → ${fm(res)}`);return;}
-  if(y===8&&!r){out.push(`÷ 8 is halving three times: ${fm(x)} → ${fm(x/2)} → ${fm(x/4)} → ${fm(res)}`);return;}
-  if(y===5){out.push(`÷ 5 is × 2 then ÷ 10: ${fm(x)} × 2 = ${fm(x*2)} → ${fm(res)}`);return;}
+  if(y===2&&!r){out.push(`Halve it: ${fm(res)}`);return;}
+  if(y===4&&!r){out.push(`Halve twice: ${fm(x)} → ${fm(x/2)} → ${fm(res)}`);return;}
+  if(y===8&&!r){out.push(`Halve three times: ${fm(x)} → ${fm(x/2)} → ${fm(x/4)} → ${fm(res)}`);return;}
+  if(y===5){out.push(`÷ 5 is doubling, then dropping a zero: ${fm(x*2)} → ${fm(res)}`);return;}
   if(y<=12){
-    if(q<10){out.push(`${fm(x)} ÷ ${y} = ${q}${r?` remainder ${r}`:''}, because ${y} × ${q} = ${fm(q*y)}`);if(r)out.push(fracStep(q,r,y));return;}
+    if(q<10){out.push(`${fm(x)} ÷ ${y} = ${q}${r?` remainder ${r}, and ${fracTxt(q,r,y)}`:''}`);return;}
     const pl=10**(String(q).length-1),big=Math.floor(q/pl)*pl,rest=x-big*y,q2=Math.floor(rest/y),r2=rest-q2*y;
     if(big===q&&!r){out.push(`${fm(x)} ÷ ${y} = ${fm(q)}, because ${y} × ${fm(q)} = ${fm(x)}`);return;}
-    out.push(`Split ${fm(x)} into chunks ${y} goes into: ${fm(big*y)} + ${fm(rest)}`);
-    out.push(`${fm(big*y)} ÷ ${y} = ${fm(big)}, and ${fm(rest)} ÷ ${y} = ${fm(q2)}${r2?` remainder ${r2}`:''}`);
-    out.push(`${fm(big)} + ${fm(q2)} = ${fm(q)}`);if(r2)out.push(fracStep(q,r2,y));return;}
-  out.push(`Estimate, then check by multiplying: ${fm(y)} × ${fm(res)} = ${fm(x)}`);}
+    out.push(`Split it: ${fm(big*y)} ÷ ${y} = ${fm(big)} and ${fm(rest)} ÷ ${y} = ${fm(q2)}${r2?` remainder ${r2}`:''}, so ${r2?fracTxt(q,r2,y):fm(q)}`);return;}
+  out.push(`Check by multiplying: ${fm(y)} × ${fm(res)} = ${fm(x)}`);}
 function divSteps(a,b){const out=[];let x=a,y=b;
-  const drop=()=>{const z=Math.min(tz(x),tz(y));if(z){const p=10**z;out.push(y===p?`÷ ${fm(p)} just drops ${zs(z)}: ${fm(x)} → ${fm(x/p)}`:`Drop ${zs(z)} from both: ${fm(x)} ÷ ${fm(y)} → ${fm(x/p)} ÷ ${fm(y/p)}`);x/=p;y/=p;}};
-  if(!Number.isInteger(y)&&Number.isInteger(y*2)){out.push(`Double both to get rid of the half: ${fm(x)} ÷ ${fm(y)} → ${fm(x*2)} ÷ ${fm(y*2)}`);x*=2;y*=2;}
-  drop();
-  if(y>5&&y%25===0&&y%50!==0){out.push(`Times 4 on both turns ${fm(y)} into a round number: ${fm(x)} ÷ ${fm(y)} → ${fm(x*4)} ÷ ${fm(y*4)}`);x*=4;y*=4;drop();}
-  else if(y>5&&y%5===0&&y%10!==0){out.push(`Double both so ${fm(y)} ends in zero: ${fm(x)} ÷ ${fm(y)} → ${fm(x*2)} ÷ ${fm(y*2)}`);x*=2;y*=2;drop();}
-  divCore(x,y,out);
-  if(out.length>1&&Number.isInteger(a/b))out.push(`So ${fm(a)} ÷ ${fm(b)} = ${fm(a/b)}`);
-  return out;}
+  if(!Number.isInteger(y)&&Number.isInteger(y*2)){x*=2;y*=2;out.push(`Double both to clear the half: ${fm(x)} ÷ ${fm(y)}`);}
+  let z=Math.min(tz(x),tz(y));
+  if(z){const p=10**z;if(y===p){out.push(`÷ ${fm(p)} just drops ${zs(z)}: ${fm(x/p)}`);return out;}x/=p;y/=p;out.push(`Drop ${zs(z)} from both: ${fm(x)} ÷ ${fm(y)}`);}
+  let k=0,why='';
+  if(y>5&&y%25===0&&y%50!==0){k=4;why=`Times 4 on both so ${fm(y)} becomes ${fm(y*4)}`;}
+  else if(y>5&&y%5===0&&y%10!==0){k=2;why=`Double both so ${fm(y)} becomes ${fm(y*2)}`;}
+  if(k){x*=k;y*=k;const z2=Math.min(tz(x),tz(y)),p2=10**z2,xs=x/p2,ys=y/p2,q=xs/ys;
+    if(ys===1){out.push(`${why}: ${fm(x)} ÷ ${fm(y)} = ${fm(xs)}`);return out;}
+    if(Number.isInteger(q)&&q<=12&&ys<=12){out.push(`${why}: ${fm(x)} ÷ ${fm(y)}${z2?`, same as ${fm(xs)} ÷ ${ys}`:''} = ${q}`);return out;}
+    out.push(`${why}: ${fm(x)} ÷ ${fm(y)}${z2?`, same as ${fm(xs)} ÷ ${fm(ys)}`:''}`);x=xs;y=ys;}
+  divCore(x,y,out);return out;}
 
 // Math skills technique items: each one practices a mental shortcut the aviation problems rely on
 const QM=(a,b,say)=>({q:`<span class="n">${fm(a)} × ${fm(b)}</span> = ?`,ans:a*b,steps:mulSteps(a,b),say});
@@ -382,7 +384,7 @@ const hdg3=d=>String(((d%360)+360)%360||360).padStart(3,'0');
 // Drop straight down from the wind point to read crosswind; go straight across to the runway to read headwind.
 function xwSvg(ang,head){const O={x:58,y:232},Rr=176,rad=a=>a*Math.PI/180,P=a=>({x:O.x+Rr*Math.sin(rad(a)),y:O.y-Rr*Math.cos(rad(a))}),f=n=>n.toFixed(1);
   const spokes=[10,20,30,45,60,90];if(!spokes.includes(ang))spokes.push(ang);
-  let g=`<svg class="xw-svg" viewBox="0 0 300 278" style="overflow:visible" role="img" aria-label="Wind ${ang} degrees off the runway: ${head?'headwind':'crosswind'} is about ${XF[head?90-ang:ang][0]} of the wind">`;
+  let g=`<svg class="xw-svg" viewBox="0 0 300 278" style="overflow:visible" role="img" aria-label="Wind ${ang} degrees off the runway: ${head?'headwind':'crosswind'} is about ${(XF[head?90-ang:ang]||['none'])[0]} of the wind">`;
   // runway
   g+=`<rect x="${O.x-9}" y="${O.y-Rr-6}" width="18" height="${Rr+6}" rx="3" fill="var(--muted)"/>`;
   for(let y=O.y-Rr+4;y<O.y-8;y+=18)g+=`<rect x="${O.x-1}" y="${y}" width="2" height="9" fill="var(--panel)"/>`;
