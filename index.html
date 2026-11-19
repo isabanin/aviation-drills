@@ -866,7 +866,7 @@ function show(kind,verdict){const r=$('result');r.className='result '+kind;
 
 let advancing=false;
 const fv=n=>Math.abs(n)>=1000?fmt(Math.round(n)):String(+(+n).toFixed(2));
-function closeNote(v){if(!cur||!(cur.tol>0)||cur.time||cur.dur)return'';const has=cur.exact!==undefined,tgt=has?cur.exact:cur.ans;if(!has&&Math.abs(v-cur.ans)<1e-9)return'';
+function closeNote(v){if(!cur||!(cur.tol>0)||cur.time||cur.dur)return'';const has=cur.exact!==undefined,tgt=has?cur.exact:cur.ans;if(Math.abs(v-tgt)<0.5)return'';
   const u=cur.unit?' '+cur.unit:'',off=Math.abs(v-tgt);
   return`<div class="verdict">Close enough</div><p class="close-row"><span>You <b>${fv(v)}</b></span><span>Exact <b>${fv(tgt)}${u}</b></span>${has?`<span>Rule of thumb <b>${fa(cur)}</b></span>`:''}<span>Off by <b>${fv(off)}${u}</b></span></p>`;}
 function celebrate(sec,v){advancing=true;const b=$('checkBtn'),q=$('question'),tg=cur.target||TARGET[cur.key],note=closeNote(v);b.classList.add('ok');b.textContent='✓ '+sec+'s'+(sec>tg?' · slow':'');q.classList.add('done');
